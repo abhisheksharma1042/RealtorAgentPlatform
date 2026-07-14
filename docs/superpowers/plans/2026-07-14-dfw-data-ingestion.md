@@ -75,8 +75,10 @@ respx>=0.20.0,<0.22
 
 - [ ] **Step 2: Install**
 
-Run: `cd backend && source venv/bin/activate && pip install -r requirements.txt`
+Run: `cd backend && source venv/bin/activate && uv pip install -r requirements.txt`
 Expected: successful install, no version conflicts with `httpx<0.26`.
+
+If `uv` isn't installed yet, one-time: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 - [ ] **Step 3: Create test package roots**
 
