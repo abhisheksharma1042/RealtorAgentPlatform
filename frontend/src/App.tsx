@@ -27,23 +27,31 @@ function App() {
     ])
   }
 
+  // NOTE: These updaters MUST be pure (no mutation). React StrictMode invokes
+  // functional updaters twice in dev - if we mutate nested arrays via .push,
+  // entries get appended twice and the history cards render duplicated
+  // Agent Analysis and Tool Result widgets.
   const handleToolResult = (result: any) => {
     setHistory(prev => {
-      const newHistory = [...prev]
-      if (newHistory.length > 0) {
-        newHistory[newHistory.length - 1].toolResults.push(result)
-      }
-      return newHistory
+      if (prev.length === 0) return prev
+      const lastIdx = prev.length - 1
+      return prev.map((s, i) =>
+        i === lastIdx
+          ? { ...s, toolResults: [...s.toolResults, result] }
+          : s
+      )
     })
   }
 
   const handleAgentMessage = (message: string) => {
     setHistory(prev => {
-      const newHistory = [...prev]
-      if (newHistory.length > 0) {
-        newHistory[newHistory.length - 1].agentMessages.push(message)
-      }
-      return newHistory
+      if (prev.length === 0) return prev
+      const lastIdx = prev.length - 1
+      return prev.map((s, i) =>
+        i === lastIdx
+          ? { ...s, agentMessages: [...s.agentMessages, message] }
+          : s
+      )
     })
   }
 
