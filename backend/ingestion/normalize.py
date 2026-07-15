@@ -69,7 +69,7 @@ async def normalize_seeded_zips_from_dcad() -> int:
     zips = config.SEEDED_ZIPS
     sql = """
         INSERT INTO properties (
-            source, external_id, address, city, zip_code, location,
+            source, external_id, address, city, zip_code, location, lat, lon,
             beds, baths, sqft, lot_size_acres, year_built,
             property_type, status, last_synced_at
         )
@@ -80,6 +80,8 @@ async def normalize_seeded_zips_from_dcad() -> int:
             city                                       AS city,
             situs_zip                                  AS zip_code,
             location                                   AS location,
+            ST_Y(location::geometry)                   AS lat,
+            ST_X(location::geometry)                   AS lon,
             bedrooms                                   AS beds,
             bathrooms                                  AS baths,
             living_area_sqft                           AS sqft,
@@ -95,6 +97,8 @@ async def normalize_seeded_zips_from_dcad() -> int:
             city = EXCLUDED.city,
             zip_code = EXCLUDED.zip_code,
             location = EXCLUDED.location,
+            lat = EXCLUDED.lat,
+            lon = EXCLUDED.lon,
             beds = EXCLUDED.beds,
             baths = EXCLUDED.baths,
             sqft = EXCLUDED.sqft,

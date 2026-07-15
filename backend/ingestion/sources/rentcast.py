@@ -109,6 +109,8 @@ class RentCastAdapter(SourceAdapter):
                 "city": listing.get("city"),
                 "zip_code": listing.get("zipCode"),
                 "location": location,
+                "lat": lat,
+                "lon": lon,
                 "beds": listing.get("bedrooms"),
                 "baths": listing.get("bathrooms"),
                 "sqft": listing.get("squareFootage"),

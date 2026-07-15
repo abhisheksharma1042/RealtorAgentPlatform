@@ -111,7 +111,7 @@ function App() {
       {/* Three-pane layout - Simple grid for now, resizable panels in Phase 9 */}
       <div className="h-[calc(100vh-73px)] grid grid-cols-12 gap-1">
         {/* Left: Chat Panel */}
-        <div className="col-span-3">
+        <div className="col-span-3 overflow-hidden">
           <ChatPanel
             onStreamStart={handleStreamStart}
             onToolResult={handleToolResult}
@@ -121,7 +121,7 @@ function App() {
         </div>
 
         {/* Center: Filters and Map */}
-        <div className="col-span-4 border-l border-r border-border">
+        <div className="col-span-4 border-l border-r border-border overflow-hidden">
           <FiltersAndMapPanel 
              latestSales={filteredLatestSales} 
              filters={{ minPrice, maxPrice, minBeds, minBaths }}
@@ -130,7 +130,7 @@ function App() {
         </div>
 
         {/* Right: Output Panel */}
-        <div className="col-span-5">
+        <div className="col-span-5 overflow-hidden">
           <OutputPanel history={history} />
         </div>
       </div>

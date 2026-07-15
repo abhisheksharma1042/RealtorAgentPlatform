@@ -119,21 +119,25 @@ class SupabaseDB:
         response = query.execute()
         properties = response.data
 
-        # Extract coordinates for map markers
+        # Build map markers from the numeric lat/lon columns (populated by
+        # migration 005). The GEOGRAPHY 'location' column comes back as hex
+        # EWKB over REST and isn't directly usable client-side.
         map_markers = []
         for prop in properties:
-            if prop.get("location"):
-                # Parse POINT(lon lat) format
-                location = prop["location"]
-                if "POINT" in location:
-                    coords = location.replace("POINT(", "").replace(")", "").split()
-                    if len(coords) == 2:
-                        map_markers.append({
-                            "lon": float(coords[0]),
-                            "lat": float(coords[1]),
-                            "price": prop.get("sold_price"),
-                            "address": prop.get("address")
-                        })
+            lat = prop.get("lat")
+            lon = prop.get("lon")
+            if lat is None or lon is None:
+                continue
+            price = prop.get("sold_price") or prop.get("price")
+            map_markers.append({
+                "lat": float(lat),
+                "lon": float(lon),
+                "price": float(price) if price is not None else None,
+                "address": prop.get("address"),
+                "beds": prop.get("beds"),
+                "baths": float(prop["baths"]) if prop.get("baths") is not None else None,
+                "sqft": prop.get("sqft"),
+            })
 
         return {
             "type": "comparable_sales",
