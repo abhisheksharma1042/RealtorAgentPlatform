@@ -192,5 +192,24 @@ class SupabaseDB:
             return False
 
 
-# Global database instance
-db = SupabaseDB()
+class _LazyDB:
+    """Lazy proxy for the SupabaseDB singleton.
+
+    Defers real client creation until first attribute access, so importing
+    this module (e.g. from tests that mock the DB) doesn't require live
+    Supabase credentials.
+    """
+
+    _instance = None
+
+    def _get(self):
+        if self._instance is None:
+            self._instance = SupabaseDB()
+        return self._instance
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+
+# Global database instance (lazy)
+db = _LazyDB()
