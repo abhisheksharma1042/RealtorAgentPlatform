@@ -21,7 +21,7 @@ async def test_fetch_flood_zone_returns_normalized_result():
     with patch("backend.ingestion.sources.fema.db", fake_db):
         adapter = FemaAdapter()
         with respx.mock(assert_all_called=False) as router:
-            router.get(url__startswith="https://hazards.fema.gov").mock(
+            router.route(host="hazards.fema.gov").mock(
                 return_value=httpx.Response(200, json=fixture)
             )
             result = await adapter.fetch_flood_zone(lat=32.8336, lon=-96.7880)

@@ -30,7 +30,7 @@ async def test_fetch_zip_stats_hits_api_first_call(monkeypatch):
     with patch("backend.ingestion.sources.census.db", fake_db):
         adapter = CensusAdapter()
         with respx.mock(assert_all_called=False) as router:
-            route = router.get(url__startswith="https://api.census.gov/data/2022/acs/acs5").mock(
+            route = router.route(host="api.census.gov").mock(
                 return_value=httpx.Response(200, json=fixture)
             )
             first = await adapter.fetch_zip_stats("75205")

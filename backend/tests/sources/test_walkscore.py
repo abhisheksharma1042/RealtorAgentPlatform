@@ -22,7 +22,7 @@ async def test_fetch_scores_parses_all_three_scores(monkeypatch):
     with patch("backend.ingestion.sources.walkscore.db", fake_db):
         adapter = WalkScoreAdapter()
         with respx.mock(assert_all_called=False) as router:
-            router.get(url__startswith="https://api.walkscore.com").mock(
+            router.route(host="api.walkscore.com").mock(
                 return_value=httpx.Response(200, json=fixture)
             )
             result = await adapter.fetch_scores(

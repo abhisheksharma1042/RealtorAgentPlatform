@@ -34,7 +34,7 @@ async def test_fetch_market_uses_cache_on_second_call(monkeypatch):
     with patch("backend.ingestion.budget.db", fake_db):
         adapter = RentCastAdapter()
         with respx.mock(assert_all_called=False) as router:
-            route = router.get("https://api.rentcast.io/v1/markets").mock(
+            route = router.route(host="api.rentcast.io", path="/v1/markets").mock(
                 return_value=httpx.Response(200, json=market_response)
             )
             first = await adapter.fetch_market("75205")
