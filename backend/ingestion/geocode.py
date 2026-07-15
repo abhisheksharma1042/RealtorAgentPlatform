@@ -18,6 +18,9 @@ BATCH_URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
 BATCH_SIZE = 5_000   # Census max is 10K but 10K often times out; 5K completes reliably
 MAX_RETRIES = 2
 
+MAPBOX_URL = "https://api.mapbox.com/search/geocode/v6/forward"
+MAPBOX_CONCURRENCY = 10  # Mapbox free tier is 600 req/min; 10 concurrent stays comfortably under
+
 
 class CensusGeocoder:
     """Batch geocoder against the US Census bureau's public endpoint."""
@@ -156,6 +159,139 @@ async def _write_batch_locations(
     )
     rows = [(uid, lon, lat) for uid, (lon, lat) in matches.items()]
     await conn.executemany(sql, rows)
+
+
+class MapboxGeocoder:
+    """Per-address Mapbox geocoder (fallback for addresses Census can't resolve).
+
+    Handles unit-suffixed addresses like '1747 LEONARD ST #1002' that TIGER/Line
+    doesn't recognize. Free tier: 100K requests/month.
+    """
+
+    def __init__(self, token: Optional[str] = None):
+        self.token = token or os.getenv("MAPBOX_TOKEN") or ""
+        if not self.token:
+            raise RuntimeError("MAPBOX_TOKEN not set")
+
+    async def geocode_one(
+        self,
+        client: httpx.AsyncClient,
+        address: str,
+        city: Optional[str],
+        zip_code: Optional[str],
+    ) -> Optional[tuple[float, float]]:
+        # Strip #NNNN unit suffix - the whole building shares one coordinate
+        q_addr = address.split("#")[0].strip() if "#" in address else address
+        query = ", ".join(p for p in [q_addr, city, "TX", zip_code] if p)
+        params = {
+            "q": query,
+            "access_token": self.token,
+            "country": "us",
+            "limit": 1,
+            # Note: intentionally omit `types=address` - it's too strict, causes
+            # ~40% of Dallas condo addresses to miss even when Mapbox actually
+            # knows the location as a street/place.
+        }
+        try:
+            resp = await client.get(MAPBOX_URL, params=params, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            features = data.get("features") or []
+            if not features:
+                return None
+            coords = features[0].get("geometry", {}).get("coordinates")
+            if coords and len(coords) == 2:
+                lon, lat = float(coords[0]), float(coords[1])
+                return (lon, lat)
+        except (httpx.HTTPError, ValueError):
+            return None
+        return None
+
+
+def _base_address(addr: str) -> str:
+    """Strip trailing '#NNNN' unit suffix so all condos in one building share a coord."""
+    if "#" in addr:
+        return addr.split("#")[0].strip()
+    return addr.strip()
+
+
+async def backfill_county_parcels_mapbox(
+    zips: Optional[list[str]] = None,
+    limit: Optional[int] = None,
+    verbose: bool = True,
+) -> tuple[int, int]:
+    """Second-pass geocode using Mapbox for rows still lacking a location.
+
+    Groups rows by (base_address, city, zip) so a 46-unit condo tower like
+    '1747 LEONARD ST #NNNN' costs 1 API call instead of 46. All units in the
+    building get the same building-level coordinate.
+
+    Returns ``(matched_row_count, requested_row_count)``.
+    """
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL not set")
+
+    where = ["county = 'dallas'", "situs_address IS NOT NULL", "situs_address <> ''",
+             "location IS NULL"]
+    if zips:
+        where.append("situs_zip = ANY($1)")
+    sql = f"SELECT account_num, situs_address, city, situs_zip FROM county_parcels WHERE {' AND '.join(where)}"
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        rows = await conn.fetch(sql, *([zips] if zips else []))
+        if verbose:
+            print(f"Mapbox fallback: {len(rows)} parcels need geocoding")
+        if not rows:
+            return (0, 0)
+
+        # Group account_nums by (base_addr, city, zip). Same building = one API call.
+        groups: dict[tuple[str, str, str], list[str]] = {}
+        for r in rows:
+            key = (
+                _base_address(r["situs_address"]),
+                (r["city"] or "").strip(),
+                (r["situs_zip"] or "").strip(),
+            )
+            groups.setdefault(key, []).append(r["account_num"])
+
+        if verbose:
+            print(f"  {len(groups)} unique base addresses (saves {len(rows) - len(groups)} calls)")
+
+        geocoder = MapboxGeocoder()
+        sem = asyncio.Semaphore(MAPBOX_CONCURRENCY)
+        matched: dict[str, tuple[float, float]] = {}
+        group_items = list(groups.items())
+        done_groups = 0
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            async def geo_group(key, account_nums):
+                base_addr, city, zip_ = key
+                async with sem:
+                    coords = await geocoder.geocode_one(client, base_addr, city, zip_)
+                if coords:
+                    for acc in account_nums:
+                        matched[acc] = coords
+
+            chunk = 100
+            for start in range(0, len(group_items), chunk):
+                batch = group_items[start : start + chunk]
+                await asyncio.gather(*(geo_group(k, v) for k, v in batch))
+                done_groups += len(batch)
+                if verbose:
+                    print(
+                        f"  ... {done_groups}/{len(group_items)} groups  "
+                        f"({len(matched)} rows matched so far)"
+                    )
+
+        if matched:
+            await _write_batch_locations(conn, matched)
+        return (len(matched), len(rows))
+    finally:
+        await conn.close()
 
 
 def _iter_chunks(seq: Iterable, n: int):
