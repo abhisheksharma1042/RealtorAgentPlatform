@@ -1,0 +1,24 @@
+[
+  {
+    "id": "rc_abc123",
+    "formattedAddress": "123 Beverly Dr, Highland Park, TX 75205",
+    "addressLine1": "123 Beverly Dr",
+    "city": "Highland Park",
+    "state": "TX",
+    "zipCode": "75205",
+    "latitude": 32.8336,
+    "longitude": -96.7880,
+    "propertyType": "Single Family",
+    "bedrooms": 4,
+    "bathrooms": 3.5,
+    "squareFootage": 3200,
+    "lotSize": 8500,
+    "yearBuilt": 1998,
+    "status": "Sold",
+    "price": 1350000,
+    "listedDate": "2026-01-14",
+    "removedDate": "2026-02-28",
+    "daysOnMarket": 45,
+    "lastSeenDate": "2026-02-28"
+  }
+]
