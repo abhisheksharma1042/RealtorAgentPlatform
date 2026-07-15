@@ -67,6 +67,19 @@ async def geocode_backfill(args: argparse.Namespace) -> int:
     return 0
 
 
+async def geocode_mapbox(args: argparse.Namespace) -> int:
+    zips = args.zips.split(",") if args.zips else config.SEEDED_ZIPS
+    matched, total = await geocode.backfill_county_parcels_mapbox(
+        zips=zips,
+        limit=args.limit,
+    )
+    print(f"Mapbox matched {matched}/{total} parcels.")
+    print("Refreshing properties.location from county_parcels...")
+    n = await normalize.normalize_seeded_zips_from_dcad()
+    print(f"Re-normalized {n} rows into properties.")
+    return 0
+
+
 async def rentcast_seed(args: argparse.Namespace) -> int:
     adapter = RentCastAdapter()
     zips = args.zips.split(",") if args.zips else config.SEEDED_ZIPS
@@ -102,6 +115,10 @@ def build_parser() -> argparse.ArgumentParser:
     geo_bf.add_argument("--all", action="store_true", help="Include rows that already have location")
     geo_bf.add_argument("--limit", type=int, help="Cap on rows to geocode (for testing)")
 
+    geo_mb = geo_sub.add_parser("mapbox", help="Mapbox fallback for rows Census missed")
+    geo_mb.add_argument("--zips", help="Comma-separated zip codes (default: SEEDED_ZIPS)")
+    geo_mb.add_argument("--limit", type=int, help="Cap on rows to geocode (for testing)")
+
     rent = sub.add_parser("rentcast", help="RentCast API ingestion")
     rent_sub = rent.add_subparsers(dest="command", required=True)
     rent_seed_p = rent_sub.add_parser("seed", help="Seed market_stats + sold listings for zips")
@@ -115,6 +132,8 @@ async def _dispatch(args: argparse.Namespace) -> int:
         return await dcad_refresh(args)
     if args.source == "geocode" and args.command == "backfill":
         return await geocode_backfill(args)
+    if args.source == "geocode" and args.command == "mapbox":
+        return await geocode_mapbox(args)
     if args.source == "rentcast" and args.command == "seed":
         return await rentcast_seed(args)
     print(f"Unknown command: {args.source} {args.command}", file=sys.stderr)
