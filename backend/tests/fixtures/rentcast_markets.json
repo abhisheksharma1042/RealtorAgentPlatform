@@ -1,0 +1,16 @@
+{
+  "zipCode": "75205",
+  "saleData": {
+    "lastUpdatedDate": "2026-06-01",
+    "averagePrice": 1450000,
+    "medianPrice": 1250000,
+    "medianPricePerSquareFoot": 425,
+    "averageDaysOnMarket": 42,
+    "newListings": 87,
+    "totalListings": 203,
+    "history": {
+      "2026-06": {"medianPrice": 1250000, "averageDaysOnMarket": 42, "totalListings": 203, "newListings": 87},
+      "2026-05": {"medianPrice": 1240000, "averageDaysOnMarket": 40, "totalListings": 198, "newListings": 82}
+    }
+  }
+}
