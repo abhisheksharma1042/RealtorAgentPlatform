@@ -9,9 +9,9 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.db.client import db  # noqa: E402 - after load_dotenv
-from backend.ingestion import config, normalize
-from backend.ingestion.sources.dcad import DCADAdapter
-from backend.ingestion.sources.rentcast import RentCastAdapter
+from backend.ingestion import config, geocode, normalize  # noqa: E402
+from backend.ingestion.sources.dcad import DCADAdapter  # noqa: E402
+from backend.ingestion.sources.rentcast import RentCastAdapter  # noqa: E402
 
 
 async def dcad_refresh(args: argparse.Namespace) -> int:
@@ -53,6 +53,20 @@ async def dcad_refresh(args: argparse.Namespace) -> int:
     return 0
 
 
+async def geocode_backfill(args: argparse.Namespace) -> int:
+    zips = args.zips.split(",") if args.zips else config.SEEDED_ZIPS
+    matched, total = await geocode.backfill_county_parcels(
+        zips=zips,
+        only_missing=not args.all,
+        limit=args.limit,
+    )
+    print(f"Geocoded {matched}/{total} parcels.")
+    print("Refreshing properties.location from county_parcels...")
+    n = await normalize.normalize_seeded_zips_from_dcad()
+    print(f"Re-normalized {n} rows into properties.")
+    return 0
+
+
 async def rentcast_seed(args: argparse.Namespace) -> int:
     adapter = RentCastAdapter()
     zips = args.zips.split(",") if args.zips else config.SEEDED_ZIPS
@@ -81,6 +95,13 @@ def build_parser() -> argparse.ArgumentParser:
     dcad_refresh_p = dcad_sub.add_parser("refresh", help="Download+ingest DCAD bulk parcels")
     dcad_refresh_p.add_argument("--file", help="Path to a local DCAD CSV (skip download)")
 
+    geo = sub.add_parser("geocode", help="Census-based geocoding")
+    geo_sub = geo.add_subparsers(dest="command", required=True)
+    geo_bf = geo_sub.add_parser("backfill", help="Fill county_parcels.location via Census")
+    geo_bf.add_argument("--zips", help="Comma-separated zip codes (default: SEEDED_ZIPS)")
+    geo_bf.add_argument("--all", action="store_true", help="Include rows that already have location")
+    geo_bf.add_argument("--limit", type=int, help="Cap on rows to geocode (for testing)")
+
     rent = sub.add_parser("rentcast", help="RentCast API ingestion")
     rent_sub = rent.add_subparsers(dest="command", required=True)
     rent_seed_p = rent_sub.add_parser("seed", help="Seed market_stats + sold listings for zips")
@@ -92,6 +113,8 @@ def build_parser() -> argparse.ArgumentParser:
 async def _dispatch(args: argparse.Namespace) -> int:
     if args.source == "dcad" and args.command == "refresh":
         return await dcad_refresh(args)
+    if args.source == "geocode" and args.command == "backfill":
+        return await geocode_backfill(args)
     if args.source == "rentcast" and args.command == "seed":
         return await rentcast_seed(args)
     print(f"Unknown command: {args.source} {args.command}", file=sys.stderr)
