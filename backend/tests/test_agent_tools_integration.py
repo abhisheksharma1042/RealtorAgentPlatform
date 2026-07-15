@@ -45,9 +45,12 @@ async def test_get_comparable_sales_returns_county_sourced_rows():
         "sqft": 3200,
     })
 
-    result = await get_comparable_sales(zip_code="75205")
+    result = await get_comparable_sales(zip_code="75205", limit=20)
 
     assert result["type"] == "comparable_sales"
     assert result["count"] >= 1
-    addresses = [p["address"] for p in result["properties"]]
-    assert "4712 BEVERLY DR" in addresses
+    # Every returned property should be in 75205; at least one should be county-sourced
+    # (status=NULL) which is the specific bug this test guards against.
+    assert all(p["zip_code"] == "75205" for p in result["properties"])
+    county_sourced = [p for p in result["properties"] if p.get("source") == "county"]
+    assert len(county_sourced) >= 1

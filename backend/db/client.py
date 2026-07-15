@@ -301,6 +301,57 @@ class SupabaseDB:
             on_conflict="county,account_num",
         ).execute()
 
+    async def upsert_county_parcels(self, parcels: List[Dict[str, Any]]) -> None:
+        """Batched version - single HTTP request per call. Preferred for bulk loads."""
+        if not parcels:
+            return
+        self.client.table("county_parcels").upsert(
+            parcels,
+            on_conflict="county,account_num",
+        ).execute()
+
+    async def upsert_county_parcels_asyncpg(self, parcels: List[Dict[str, Any]]) -> None:
+        """Direct-Postgres bulk upsert via asyncpg + DATABASE_URL.
+
+        The Supabase REST/PostgREST path hangs on real-DCAD-scale payloads
+        (large JSONB `raw` field × 200 rows). This bypasses REST entirely.
+        """
+        if not parcels:
+            return
+        import json
+        import asyncpg
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError("DATABASE_URL not set - required for asyncpg bulk upsert")
+        conn = await asyncpg.connect(db_url)
+        try:
+            cols = [
+                "county", "account_num", "situs_address", "situs_zip", "city",
+                "land_use_code", "living_area_sqft", "land_sqft", "year_built",
+                "bedrooms", "bathrooms", "total_appraised", "land_value",
+                "improvement_value", "tax_year", "raw",
+            ]
+            placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+            updates = ", ".join(f"{c}=EXCLUDED.{c}" for c in cols if c not in ("county", "account_num"))
+            sql = (
+                f"INSERT INTO county_parcels ({', '.join(cols)}) "
+                f"VALUES ({placeholders}) "
+                f"ON CONFLICT (county, account_num) DO UPDATE SET {updates}"
+            )
+            rows = [
+                (
+                    p["county"], p["account_num"], p["situs_address"], p["situs_zip"],
+                    p["city"], p["land_use_code"], p["living_area_sqft"], p["land_sqft"],
+                    p["year_built"], p["bedrooms"], p["bathrooms"],
+                    p["total_appraised"], p["land_value"], p["improvement_value"],
+                    p["tax_year"], json.dumps(p.get("raw")) if p.get("raw") is not None else None,
+                )
+                for p in parcels
+            ]
+            await conn.executemany(sql, rows)
+        finally:
+            await conn.close()
+
     async def upsert_property(self, prop: Dict[str, Any]) -> None:
         self.client.table("properties").upsert(
             prop,

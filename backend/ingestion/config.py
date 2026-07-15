@@ -13,7 +13,9 @@ def _env_list(name: str, default: list[str]) -> list[str]:
 
 SEEDED_ZIPS: list[str] = _env_list(
     "SEEDED_ZIPS",
-    ["75201", "75205", "75225", "75093", "75024"],
+    # Dallas County only. 75093 (Plano) and 75024 (Plano) are Collin County
+    # and need CCAD data - swap in when CCAD adapter lands.
+    ["75201", "75205", "75225", "75204", "75248"],
 )
 
 COUNTIES_ACTIVE: list[str] = _env_list("COUNTIES_ACTIVE", ["dallas"])

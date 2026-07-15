@@ -55,23 +55,61 @@ def merge_property_records(
 
 
 async def normalize_seeded_zips_from_dcad() -> int:
-    """Read county_parcels for SEEDED_ZIPS, upsert to properties. Returns row count."""
+    """INSERT...SELECT from county_parcels to properties for SEEDED_ZIPS.
+
+    Single SQL statement via asyncpg - the Supabase REST client caps SELECT
+    at 1000 rows and would need pagination + row-by-row upserts for tens of
+    thousands of parcels. This runs in one round-trip.
+    """
+    import os
+    import asyncpg
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL not set - required for bulk normalize")
     zips = config.SEEDED_ZIPS
-    result = (
-        db.client.table("county_parcels")
-        .select("*")
-        .eq("county", "dallas")
-        .in_("situs_zip", zips)
-        .execute()
-    )
-    adapter = DCADAdapter()
-    count = 0
-    for parcel in result.data:
-        prop = adapter.to_property_row(parcel)
-        prop["last_synced_at"] = _now_iso()
-        await db.upsert_property(prop)
-        count += 1
-    return count
+    sql = """
+        INSERT INTO properties (
+            source, external_id, address, city, zip_code,
+            beds, baths, sqft, lot_size_acres, year_built,
+            property_type, status, last_synced_at
+        )
+        SELECT
+            'county'                                   AS source,
+            county || ':' || account_num               AS external_id,
+            situs_address                              AS address,
+            city                                       AS city,
+            situs_zip                                  AS zip_code,
+            bedrooms                                   AS beds,
+            bathrooms                                  AS baths,
+            living_area_sqft                           AS sqft,
+            ROUND((land_sqft / 43560.0)::numeric, 3)   AS lot_size_acres,
+            year_built                                 AS year_built,
+            NULL                                       AS property_type,
+            NULL                                       AS status,
+            NOW()                                      AS last_synced_at
+        FROM county_parcels
+        WHERE county = 'dallas' AND situs_zip = ANY($1)
+        ON CONFLICT (source, external_id) DO UPDATE SET
+            address = EXCLUDED.address,
+            city = EXCLUDED.city,
+            zip_code = EXCLUDED.zip_code,
+            beds = EXCLUDED.beds,
+            baths = EXCLUDED.baths,
+            sqft = EXCLUDED.sqft,
+            lot_size_acres = EXCLUDED.lot_size_acres,
+            year_built = EXCLUDED.year_built,
+            last_synced_at = EXCLUDED.last_synced_at
+    """
+    conn = await asyncpg.connect(db_url)
+    try:
+        result = await conn.execute(sql, zips)
+        # result is like 'INSERT 0 41295' - the last number is affected rows
+        try:
+            return int(result.split()[-1])
+        except (ValueError, IndexError):
+            return 0
+    finally:
+        await conn.close()
 
 
 async def normalize_rentcast_market_to_stats(zip_code: str, raw_market: dict[str, Any]) -> int:

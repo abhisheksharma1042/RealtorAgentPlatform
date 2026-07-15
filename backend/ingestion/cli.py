@@ -18,18 +18,34 @@ async def dcad_refresh(args: argparse.Namespace) -> int:
     adapter = DCADAdapter()
     path = args.file
     if not path:
-        print("Downloading DCAD bulk export...")
+        print("Downloading DCAD bulk export (~196MB)...")
         path = await adapter.fetch()
         print(f"Saved to {path}")
     print(f"Parsing {path}...")
+
+    is_zip = str(path).lower().endswith(".zip")
+    if is_zip:
+        # Real DCAD zip - filter to seeded zips at parse time to keep memory bounded
+        parcels_iter = adapter.parse_zip(path, seeded_zips=config.SEEDED_ZIPS)
+    else:
+        # Legacy flat CSV (test fixture)
+        parcels_iter = adapter.parse_csv(path)
+
+    BATCH = 500
     inserted = 0
-    for parcel in adapter.parse_csv(path):
+    batch: list[dict] = []
+    for parcel in parcels_iter:
         if not parcel["account_num"]:
             continue
-        await db.upsert_county_parcel(parcel)
-        inserted += 1
-        if inserted % 1000 == 0:
+        batch.append(parcel)
+        if len(batch) >= BATCH:
+            await db.upsert_county_parcels_asyncpg(batch)
+            inserted += len(batch)
             print(f"  ... {inserted} parcels")
+            batch = []
+    if batch:
+        await db.upsert_county_parcels_asyncpg(batch)
+        inserted += len(batch)
     print(f"Upserted {inserted} parcels into county_parcels.")
     print("Normalizing seeded zips into properties...")
     n = await normalize.normalize_seeded_zips_from_dcad()
