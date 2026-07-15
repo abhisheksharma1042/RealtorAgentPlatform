@@ -84,10 +84,11 @@ class SupabaseDB:
         Returns:
             Dictionary with properties and metadata
         """
+        # Query all properties (county-sourced rows have status=NULL and are
+        # still valid comparables via their sold_price/sold_date if present).
         query = (
             self.client.table("properties")
             .select("*")
-            .eq("status", "sold")
         )
 
         # Apply filters
@@ -181,6 +182,180 @@ class SupabaseDB:
             "count": len(response.data),
             "properties": response.data
         }
+
+    # ---------- API response cache ----------
+
+    async def save_api_response(
+        self,
+        provider: str,
+        endpoint: str,
+        cache_key: str,
+        params: Dict[str, Any],
+        response: Any,
+        ttl_days: Optional[int] = None,
+    ) -> None:
+        expires_at = None
+        if ttl_days is not None:
+            expires_at = (datetime.utcnow() + timedelta(days=ttl_days)).isoformat()
+        payload = {
+            "provider": provider,
+            "endpoint": endpoint,
+            "cache_key": cache_key,
+            "params": params,
+            "response": response,
+            "expires_at": expires_at,
+        }
+        self.client.table("api_responses").upsert(
+            payload,
+            on_conflict="provider,endpoint,cache_key",
+        ).execute()
+
+    async def fetch_api_response(
+        self,
+        provider: str,
+        endpoint: str,
+        cache_key: str,
+    ) -> Optional[Dict[str, Any]]:
+        result = (
+            self.client.table("api_responses")
+            .select("*")
+            .eq("provider", provider)
+            .eq("endpoint", endpoint)
+            .eq("cache_key", cache_key)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+        row = result.data[0]
+        if row.get("expires_at"):
+            expiry = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
+            if expiry < datetime.now(expiry.tzinfo):
+                return None
+        return row
+
+    # ---------- Budget accounting ----------
+
+    async def get_or_create_budget_row(
+        self,
+        provider: str,
+        period,
+        monthly_limit: int,
+    ) -> Dict[str, Any]:
+        period_iso = period.isoformat()
+        existing = (
+            self.client.table("api_budget")
+            .select("*")
+            .eq("provider", provider)
+            .eq("period", period_iso)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            return existing.data[0]
+        inserted = (
+            self.client.table("api_budget")
+            .insert({
+                "provider": provider,
+                "period": period_iso,
+                "requests_used": 0,
+                "monthly_limit": monthly_limit,
+            })
+            .execute()
+        )
+        return inserted.data[0]
+
+    async def increment_budget(self, provider: str, period) -> Dict[str, Any]:
+        return await self._adjust_budget(provider, period, delta=1)
+
+    async def decrement_budget(self, provider: str, period) -> Dict[str, Any]:
+        return await self._adjust_budget(provider, period, delta=-1)
+
+    async def _adjust_budget(self, provider: str, period, delta: int) -> Dict[str, Any]:
+        period_iso = period.isoformat()
+        current = (
+            self.client.table("api_budget")
+            .select("*")
+            .eq("provider", provider)
+            .eq("period", period_iso)
+            .limit(1)
+            .execute()
+        )
+        if not current.data:
+            raise RuntimeError(f"No budget row for {provider} @ {period_iso}")
+        new_used = max(0, current.data[0]["requests_used"] + delta)
+        updated = (
+            self.client.table("api_budget")
+            .update({"requests_used": new_used, "updated_at": datetime.utcnow().isoformat()})
+            .eq("provider", provider)
+            .eq("period", period_iso)
+            .execute()
+        )
+        return updated.data[0]
+
+    # ---------- Upserts for raw + normalized layers ----------
+
+    async def upsert_county_parcel(self, parcel: Dict[str, Any]) -> None:
+        self.client.table("county_parcels").upsert(
+            parcel,
+            on_conflict="county,account_num",
+        ).execute()
+
+    async def upsert_property(self, prop: Dict[str, Any]) -> None:
+        self.client.table("properties").upsert(
+            prop,
+            on_conflict="source,external_id",
+        ).execute()
+
+    async def upsert_market_stat(self, stat: Dict[str, Any]) -> None:
+        self.client.table("market_stats").upsert(
+            stat,
+            on_conflict="zip_code,period,property_type",
+        ).execute()
+
+    # ---------- Enrichment cache ----------
+
+    async def upsert_enrichment(
+        self,
+        source: str,
+        cache_key: str,
+        data: Dict[str, Any],
+        ttl_days: Optional[int] = None,
+    ) -> None:
+        expires_at = None
+        if ttl_days is not None:
+            expires_at = (datetime.utcnow() + timedelta(days=ttl_days)).isoformat()
+        self.client.table("enrichment_cache").upsert(
+            {
+                "source": source,
+                "cache_key": cache_key,
+                "data": data,
+                "expires_at": expires_at,
+            },
+            on_conflict="source,cache_key",
+        ).execute()
+
+    async def fetch_enrichment(
+        self,
+        source: str,
+        cache_key: str,
+    ) -> Optional[Dict[str, Any]]:
+        result = (
+            self.client.table("enrichment_cache")
+            .select("*")
+            .eq("source", source)
+            .eq("cache_key", cache_key)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+        row = result.data[0]
+        if row.get("expires_at"):
+            expiry = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
+            if expiry < datetime.now(expiry.tzinfo):
+                return None
+        return row["data"]
 
     def test_connection(self) -> bool:
         """Test database connection"""
