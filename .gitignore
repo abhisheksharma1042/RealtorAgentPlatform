@@ -44,6 +44,7 @@ supabase/.env.local
 # IDEs
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
