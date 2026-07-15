@@ -2,8 +2,13 @@
 import argparse
 import asyncio
 import sys
+from pathlib import Path
 
-from backend.db.client import db
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
+
+from backend.db.client import db  # noqa: E402 - after load_dotenv
 from backend.ingestion import config, normalize
 from backend.ingestion.sources.dcad import DCADAdapter
 from backend.ingestion.sources.rentcast import RentCastAdapter
