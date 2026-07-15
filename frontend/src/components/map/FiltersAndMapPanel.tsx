@@ -5,11 +5,15 @@ import { MapPin, Filter, Table, ChevronUp, ChevronDown } from 'lucide-react'
 interface MarkerData {
   lat: number
   lon: number
-  price?: number
+  price?: number | null
+  appraised_value?: number | null
+  price_kind?: 'sold' | 'appraised' | null
   address?: string
   beds?: number
   baths?: number
   sqft?: number
+  year_built?: number
+  source?: string
 }
 
 interface FiltersAndMapPanelProps {
@@ -40,10 +44,16 @@ export default function FiltersAndMapPanel({ latestSales, filters, onFilterChang
 
   const markers = latestSales?.markers ?? []
 
+  // A single "displayable" value per row: sold price if available, else appraised.
+  // Texas is non-disclosure so most county-sourced rows only have appraised.
+  const displayPrice = (m: MarkerData): number | null => {
+    return m.price ?? m.appraised_value ?? null
+  }
+
   const sortedMarkers = [...markers].sort((a, b) => {
     let aVal: number | string = 0
     let bVal: number | string = 0
-    if (sortKey === 'price') { aVal = a.price ?? 0; bVal = b.price ?? 0 }
+    if (sortKey === 'price') { aVal = displayPrice(a) ?? 0; bVal = displayPrice(b) ?? 0 }
     else if (sortKey === 'beds') { aVal = a.beds ?? 0; bVal = b.beds ?? 0 }
     else if (sortKey === 'baths') { aVal = a.baths ?? 0; bVal = b.baths ?? 0 }
     else if (sortKey === 'sqft') { aVal = a.sqft ?? 0; bVal = b.sqft ?? 0 }
@@ -124,7 +134,9 @@ export default function FiltersAndMapPanel({ latestSales, filters, onFilterChang
               </thead>
               <tbody>
                 {sortedMarkers.map((m, i) => {
-                  const pricePerSqft = m.price && m.sqft ? Math.round(m.price / m.sqft) : null
+                  const price = displayPrice(m)
+                  const kind = m.price_kind ?? (m.price ? 'sold' : (m.appraised_value ? 'appraised' : null))
+                  const pricePerSqft = price && m.sqft ? Math.round(price / m.sqft) : null
                   return (
                     <tr
                       key={i}
@@ -133,8 +145,19 @@ export default function FiltersAndMapPanel({ latestSales, filters, onFilterChang
                       <td className="px-3 py-2 text-foreground font-medium max-w-[120px] truncate" title={m.address}>
                         {m.address ?? '—'}
                       </td>
-                      <td className="px-3 py-2 text-right text-primary font-semibold whitespace-nowrap">
-                        {m.price ? `$${(m.price / 1000).toFixed(0)}K` : '—'}
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {price ? (
+                          <span className="inline-flex flex-col items-end leading-tight">
+                            <span className="text-primary font-semibold">
+                              ${(price / 1000).toFixed(0)}K
+                            </span>
+                            {kind === 'appraised' && (
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                appraised
+                              </span>
+                            )}
+                          </span>
+                        ) : '—'}
                       </td>
                       <td className="px-3 py-2 text-right text-foreground">{m.beds ?? '—'}</td>
                       <td className="px-3 py-2 text-right text-foreground">{m.baths ?? '—'}</td>

@@ -129,14 +129,19 @@ class SupabaseDB:
             if lat is None or lon is None:
                 continue
             price = prop.get("sold_price") or prop.get("price")
+            appraised = prop.get("appraised_value")
             map_markers.append({
                 "lat": float(lat),
                 "lon": float(lon),
                 "price": float(price) if price is not None else None,
+                "appraised_value": float(appraised) if appraised is not None else None,
+                "price_kind": "sold" if price else ("appraised" if appraised else None),
                 "address": prop.get("address"),
                 "beds": prop.get("beds"),
                 "baths": float(prop["baths"]) if prop.get("baths") is not None else None,
                 "sqft": prop.get("sqft"),
+                "year_built": prop.get("year_built"),
+                "source": prop.get("source"),
             })
 
         return {

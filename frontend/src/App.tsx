@@ -93,15 +93,25 @@ function App() {
          !Number.isNaN(p.lat) && !Number.isNaN(p.lon)
       );
 
-      const formattedMarkers = geocodable.map((p: any) => ({
-          lat: p.lat,
-          lon: p.lon,
-          price: p.sold_price || p.price,
-          address: p.address,
-          beds: p.beds,
-          baths: p.baths,
-          sqft: p.sqft
-      }));
+      const formattedMarkers = geocodable.map((p: any) => {
+          const sold = p.sold_price ?? p.price ?? null;
+          const appraised = p.appraised_value ?? null;
+          return {
+              lat: p.lat,
+              lon: p.lon,
+              price: sold,
+              appraised_value: appraised,
+              // Texas is a non-disclosure state so most county-sourced rows have
+              // no sold price; DCAD's total_appraised is the next best signal.
+              price_kind: sold ? 'sold' : (appraised ? 'appraised' : null),
+              address: p.address,
+              beds: p.beds,
+              baths: p.baths,
+              sqft: p.sqft,
+              year_built: p.year_built,
+              source: p.source,
+          };
+      });
       
       return {
           zipCode: latestComparableSales.zip_code,
