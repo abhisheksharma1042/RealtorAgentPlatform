@@ -71,6 +71,7 @@ async def normalize_seeded_zips_from_dcad() -> int:
         INSERT INTO properties (
             source, external_id, address, city, zip_code, location, lat, lon,
             beds, baths, sqft, lot_size_acres, year_built,
+            appraised_value,
             property_type, status, last_synced_at
         )
         SELECT
@@ -87,6 +88,7 @@ async def normalize_seeded_zips_from_dcad() -> int:
             living_area_sqft                           AS sqft,
             ROUND((land_sqft / 43560.0)::numeric, 3)   AS lot_size_acres,
             year_built                                 AS year_built,
+            total_appraised                            AS appraised_value,
             NULL                                       AS property_type,
             NULL                                       AS status,
             NOW()                                      AS last_synced_at
@@ -104,6 +106,7 @@ async def normalize_seeded_zips_from_dcad() -> int:
             sqft = EXCLUDED.sqft,
             lot_size_acres = EXCLUDED.lot_size_acres,
             year_built = EXCLUDED.year_built,
+            appraised_value = EXCLUDED.appraised_value,
             last_synced_at = EXCLUDED.last_synced_at
     """
     conn = await asyncpg.connect(db_url)
