@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from agent.graph import stream_agent_response
 
@@ -15,13 +15,13 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     """Chat request model"""
     message: str
-    session_id: str = None
+    session_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     """Chat response model"""
     message: str
-    session_id: str = None
+    session_id: Optional[str] = None
 
 
 @router.post("/message")
