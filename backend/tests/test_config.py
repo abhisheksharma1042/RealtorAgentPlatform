@@ -3,7 +3,7 @@ from backend.ingestion import config
 
 
 def test_seeded_zips_are_dallas_county():
-    assert config.SEEDED_ZIPS == ["75201", "75205", "75225", "75093", "75024"]
+    assert config.SEEDED_ZIPS == ["75201", "75205", "75225", "75204", "75248"]
 
 
 def test_dallas_is_the_only_active_county():
