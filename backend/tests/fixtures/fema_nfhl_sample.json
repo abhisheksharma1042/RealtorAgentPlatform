@@ -1,0 +1,12 @@
+{
+  "features": [
+    {
+      "attributes": {
+        "FLD_ZONE": "X",
+        "ZONE_SUBTY": "AREA OF MINIMAL FLOOD HAZARD",
+        "SFHA_TF": "F",
+        "STATIC_BFE": null
+      }
+    }
+  ]
+}
