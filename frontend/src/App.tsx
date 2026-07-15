@@ -76,15 +76,24 @@ function App() {
          const price = prop.sold_price || prop.price || 0;
          const beds = prop.beds || 0;
          const baths = prop.baths || 0;
-         
+
          const priceOk = price >= minPrice && price <= maxPrice;
          const bedsOk = beds >= minBeds;
          const bathsOk = baths >= minBaths;
-         
+
          return priceOk && bedsOk && bathsOk;
       });
-      
-      const formattedMarkers = filteredProps.map((p: any) => ({
+
+      // Drop rows that failed geocoding - the Census batch geocoder can't
+      // resolve unit-suffixed county addresses (e.g. "1747 LEONARD ST #1002")
+      // so their lat/lon come back null. Passing null to Mapbox lands the
+      // marker at (0, 0) - "Null Island" off the west coast of Africa.
+      const geocodable = filteredProps.filter((p: any) =>
+         typeof p.lat === 'number' && typeof p.lon === 'number' &&
+         !Number.isNaN(p.lat) && !Number.isNaN(p.lon)
+      );
+
+      const formattedMarkers = geocodable.map((p: any) => ({
           lat: p.lat,
           lon: p.lon,
           price: p.sold_price || p.price,
