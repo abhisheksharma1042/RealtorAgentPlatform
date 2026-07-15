@@ -13,8 +13,11 @@ from dotenv import load_dotenv
 import sys
 from pathlib import Path
 
-# Add backend directory to Python path
+# Add backend directory + repo root to Python path so imports work both
+# as `agent.foo` (legacy) and `backend.agent.foo` (new ingestion code).
 backend_dir = Path(__file__).parent
+repo_root = backend_dir.parent
+sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(backend_dir))
 
 from api.chat import router as chat_router
