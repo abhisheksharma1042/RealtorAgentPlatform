@@ -4,11 +4,14 @@ Every tool returns a dict with a 'type' key - the frontend widget reducer
 maps types to widgets. Errors come back as strings for the agent to relay;
 tools never raise into the graph.
 """
+import logging
 import re
 from typing import Any, Dict, Optional
 
 from backend.db.client import db
 from backend.hermes import HERMES_USER_ID
+
+logger = logging.getLogger(__name__)
 
 # get_comparable_sales kwargs a saved search may carry
 _SEARCH_KEYS = {
@@ -44,23 +47,33 @@ async def pin_property(address_or_id: str, note: Optional[str] = None) -> Dict[s
         await db.upsert_pin(HERMES_USER_ID, prop["id"], note)
         return {"type": "pin_update", "action": "pinned", "property": prop, "note": note}
     except Exception as exc:
+        logger.warning("pin_property failed", exc_info=True)
         return {"type": "pin_update", "error": str(exc)}
 
 
 async def unpin_property(address_or_id: str) -> Dict[str, Any]:
     try:
         matches = await db.find_property_by_address(address_or_id)
-        if len(matches) != 1:
+        if not matches:
             return {
                 "type": "pin_update",
-                "error": f"Could not uniquely resolve '{address_or_id}' "
-                         f"({len(matches)} matches).",
+                "error": f"No property found matching '{address_or_id}'.",
+            }
+        if len(matches) > 1:
+            return {
+                "type": "pin_update",
+                "error": "Multiple properties match - ask the user which one.",
+                "candidates": [
+                    {"id": m["id"], "address": m["address"], "zip_code": m.get("zip_code")}
+                    for m in matches
+                ],
             }
         removed = await db.delete_pin(HERMES_USER_ID, matches[0]["id"])
         if not removed:
             return {"type": "pin_update", "error": "That property was not pinned."}
         return {"type": "pin_update", "action": "unpinned", "property": matches[0]}
     except Exception as exc:
+        logger.warning("unpin_property failed", exc_info=True)
         return {"type": "pin_update", "error": str(exc)}
 
 
@@ -81,6 +94,7 @@ async def save_search(
         return {"type": "saved_search_update", "action": "saved",
                 "search": row, "warning": warning}
     except Exception as exc:
+        logger.warning("save_search failed", exc_info=True)
         return {"type": "saved_search_update", "error": str(exc)}
 
 
@@ -100,6 +114,7 @@ async def run_saved_search(name: str) -> Dict[str, Any]:
         result["saved_search_name"] = name
         return result
     except Exception as exc:
+        logger.warning("run_saved_search failed", exc_info=True)
         return {"type": "saved_search_update", "error": str(exc)}
 
 
@@ -114,6 +129,7 @@ async def record_skill_observation(
         row = await db.upsert_skill(HERMES_USER_ID, normalized, level, note)
         return {"type": "skill_update", "skill": row}
     except Exception as exc:
+        logger.warning("record_skill_observation failed", exc_info=True)
         return {"type": "skill_update", "error": str(exc)}
 
 
@@ -135,6 +151,7 @@ async def get_data_coverage() -> Dict[str, Any]:
             ),
         }
     except Exception as exc:
+        logger.warning("get_data_coverage failed", exc_info=True)
         return {"type": "data_coverage", "error": str(exc)}
 
 

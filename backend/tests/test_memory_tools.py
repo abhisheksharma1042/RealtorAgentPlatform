@@ -135,3 +135,35 @@ async def test_get_data_coverage_shape(fake_db):
     assert result["type"] == "data_coverage"
     assert result["coverage"][0]["zip"] == "75248"
     assert result["boundaries"] == [{"type": "Feature"}]
+
+
+@pytest.mark.asyncio
+async def test_unpin_property_ambiguous_returns_candidates(fake_db):
+    fake_db.matches = [
+        {"id": "a", "address": "1 DRUID LN", "zip_code": "75205"},
+        {"id": "b", "address": "2 DRUID LN", "zip_code": "75205"},
+    ]
+    result = await memory_tools.unpin_property("Druid Ln")
+    assert "error" in result and len(result["candidates"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_save_search_without_zip_has_no_warning(fake_db):
+    result = await memory_tools.save_search("NoZip", {"beds_min": 4})
+    assert result["action"] == "saved" and result["warning"] is None
+
+
+@pytest.mark.asyncio
+async def test_record_skill_observation_invalid_level(fake_db):
+    result = await memory_tools.record_skill_observation("comps", "expert")
+    assert "error" in result
+    assert fake_db.skills == {}  # short-circuits before db write
+
+
+@pytest.mark.asyncio
+async def test_pin_property_exception_returns_error_dict(fake_db, monkeypatch):
+    async def boom(query, limit=5):
+        raise RuntimeError("db down")
+    monkeypatch.setattr(fake_db, "find_property_by_address", boom)
+    result = await memory_tools.pin_property("4024 Druid Ln")
+    assert result["type"] == "pin_update" and "db down" in result["error"]
