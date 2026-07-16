@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.db.client import db  # noqa: E402 - after load_dotenv
-from backend.ingestion import config, geocode, normalize  # noqa: E402
+from backend.ingestion import boundaries, config, geocode, normalize  # noqa: E402
 from backend.ingestion.sources.dcad import DCADAdapter  # noqa: E402
 from backend.ingestion.sources.rentcast import RentCastAdapter  # noqa: E402
 
@@ -99,6 +99,14 @@ async def rentcast_seed(args: argparse.Namespace) -> int:
     return 0
 
 
+async def boundaries_fetch(args: argparse.Namespace) -> int:
+    zips = args.zips.split(",") if args.zips else config.SEEDED_ZIPS
+    print(f"Fetching ZCTA boundaries for {zips}...")
+    n = await boundaries.backfill_boundaries(zips)
+    print(f"Stored {n}/{len(zips)} boundaries.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="backend.ingestion.cli")
     sub = parser.add_subparsers(dest="source", required=True)
@@ -124,6 +132,11 @@ def build_parser() -> argparse.ArgumentParser:
     rent_seed_p = rent_sub.add_parser("seed", help="Seed market_stats + sold listings for zips")
     rent_seed_p.add_argument("--zips", help="Comma-separated zip codes (default: SEEDED_ZIPS)")
 
+    bnd = sub.add_parser("boundaries", help="Census ZCTA boundary polygons")
+    bnd_sub = bnd.add_subparsers(dest="command", required=True)
+    bnd_fetch = bnd_sub.add_parser("fetch", help="Fetch + store boundaries for zips")
+    bnd_fetch.add_argument("--zips", help="Comma-separated zip codes (default: SEEDED_ZIPS)")
+
     return parser
 
 
@@ -136,6 +149,8 @@ async def _dispatch(args: argparse.Namespace) -> int:
         return await geocode_mapbox(args)
     if args.source == "rentcast" and args.command == "seed":
         return await rentcast_seed(args)
+    if args.source == "boundaries" and args.command == "fetch":
+        return await boundaries_fetch(args)
     print(f"Unknown command: {args.source} {args.command}", file=sys.stderr)
     return 2
 
