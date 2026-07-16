@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// TODO(types): discriminated union for widget props / SSE tool_result payloads
 import type { Widget, WidgetAction } from './types'
 
 const widget = (

@@ -8,7 +8,17 @@ interface Message {
   timestamp: Date
 }
 
+// react-markdown passes an internal `node` (hast AST) prop to every component
+// override; drop it before spreading the rest onto a DOM element, otherwise
+// React warns about an unrecognized `node` attribute.
+function stripNode<T extends { node?: unknown }>(props: T): Omit<T, 'node'> {
+  const { node, ...rest } = props
+  void node
+  return rest
+}
+
 interface ChatPanelProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw SSE tool_result payload; shape varies by tool type
   onToolResult: (result: any) => void
   onStreamComplete: () => void
   injectedMessage?: { text: string; id: number } | null
@@ -225,14 +235,14 @@ export default function ChatPanel({
               <div className="text-sm">
                 <ReactMarkdown
                   components={{
-                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                    ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
-                    ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
-                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                    h3: ({ node, ...props }) => <h3 className="font-bold text-lg mb-2 mt-4" {...props} />,
-                    h4: ({ node, ...props }) => <h4 className="font-bold mb-1 mt-3" {...props} />,
-                    strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
-                    a: ({ node, ...props }) => <a className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer" {...props} />
+                    p: (props) => <p className="mb-2 last:mb-0" {...stripNode(props)} />,
+                    ul: (props) => <ul className="list-disc pl-4 mb-2" {...stripNode(props)} />,
+                    ol: (props) => <ol className="list-decimal pl-4 mb-2" {...stripNode(props)} />,
+                    li: (props) => <li className="mb-1" {...stripNode(props)} />,
+                    h3: (props) => <h3 className="font-bold text-lg mb-2 mt-4" {...stripNode(props)} />,
+                    h4: (props) => <h4 className="font-bold mb-1 mt-3" {...stripNode(props)} />,
+                    strong: (props) => <strong className="font-semibold" {...stripNode(props)} />,
+                    a: (props) => <a className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer" {...stripNode(props)} />
                   }}
                 >
                   {message.content}

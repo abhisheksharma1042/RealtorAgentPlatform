@@ -6,13 +6,42 @@ import { createPin, getPins } from '../../lib/memoryApi'
 type SortKey = 'price' | 'beds' | 'baths' | 'sqft' | 'address'
 type SortDir = 'asc' | 'desc'
 
+interface PropertyRow {
+  id: string
+  address?: string
+  price?: number
+  sold_price?: number
+  appraised_value?: number
+  beds?: number
+  baths?: number
+  sqft?: number
+}
+
 // Texas is non-disclosure: most county rows only have appraised_value.
-const displayPrice = (p: any): number | null =>
+const displayPrice = (p: PropertyRow): number | null =>
   p.sold_price ?? p.price ?? p.appraised_value ?? null
+
+function Th({ label, k, sortKey, sortDir, onSort }: {
+  label: string; k: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (k: SortKey) => void
+}) {
+  return (
+    <th onClick={() => onSort(k)}
+        className="px-2 py-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none hover:text-foreground whitespace-nowrap text-left">
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === k
+          ? (sortDir === 'asc'
+              ? <ChevronUp className="h-3 w-3 text-primary" />
+              : <ChevronDown className="h-3 w-3 text-primary" />)
+          : <ChevronUp className="h-3 w-3 opacity-20" />}
+      </span>
+    </th>
+  )
+}
 
 export default function CompsTableWidget(
   { result, onMemoryChange, memoryVersion }:
-  { result: any; onMemoryChange: () => void; memoryVersion?: number },
+  { result: { properties?: PropertyRow[] } | null | undefined; onMemoryChange: () => void; memoryVersion?: number },
 ) {
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -23,7 +52,7 @@ export default function CompsTableWidget(
     getPins()
       .then(rows => {
         if (!cancelled) {
-          setPinned(new Set(rows.map((r: any) => r.property_id)))
+          setPinned(new Set(rows.map((r: { property_id: string }) => r.property_id)))
         }
       })
       .catch(() => {})  // panel unreachable - leave buttons enabled
@@ -32,8 +61,8 @@ export default function CompsTableWidget(
     // so pin icons here stay in sync.
   }, [memoryVersion])
 
-  const rows: any[] = [...(result?.properties ?? [])].sort((a, b) => {
-    const val = (p: any) =>
+  const rows: PropertyRow[] = [...(result?.properties ?? [])].sort((a, b) => {
+    const val = (p: PropertyRow) =>
       sortKey === 'price' ? (displayPrice(p) ?? 0)
       : sortKey === 'address' ? (p.address ?? '')
       : (p[sortKey] ?? 0)
@@ -46,7 +75,7 @@ export default function CompsTableWidget(
     else { setSortKey(key); setSortDir('desc') }
   }
 
-  const handlePin = async (p: any) => {
+  const handlePin = async (p: PropertyRow) => {
     setPinned(prev => new Set(prev).add(p.id))  // optimistic + in-flight guard
     try {
       await createPin(p.id)
@@ -61,20 +90,6 @@ export default function CompsTableWidget(
     }
   }
 
-  const Th = ({ label, k }: { label: string; k: SortKey }) => (
-    <th onClick={() => handleSort(k)}
-        className="px-2 py-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none hover:text-foreground whitespace-nowrap text-left">
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {sortKey === k
-          ? (sortDir === 'asc'
-              ? <ChevronUp className="h-3 w-3 text-primary" />
-              : <ChevronDown className="h-3 w-3 text-primary" />)
-          : <ChevronUp className="h-3 w-3 opacity-20" />}
-      </span>
-    </th>
-  )
-
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground p-4">No matching properties.</p>
   }
@@ -83,16 +98,16 @@ export default function CompsTableWidget(
     <table className="w-full text-sm border-collapse">
       <thead className="sticky top-0 bg-card z-10 shadow-sm">
         <tr className="border-b border-border">
-          <Th label="Address" k="address" />
-          <Th label="Price" k="price" />
-          <Th label="Beds" k="beds" />
-          <Th label="Baths" k="baths" />
-          <Th label="Sqft" k="sqft" />
+          <Th label="Address" k="address" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+          <Th label="Price" k="price" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+          <Th label="Beds" k="beds" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+          <Th label="Baths" k="baths" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+          <Th label="Sqft" k="sqft" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
           <th className="px-2 py-2 text-xs font-semibold text-muted-foreground">Pin</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((p: any) => {
+        {rows.map((p) => {
           const price = displayPrice(p)
           const appraisedOnly = !p.sold_price && !p.price && p.appraised_value
           return (
