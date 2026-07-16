@@ -58,8 +58,12 @@ async def upsert_search(body: SearchUpsert):
     )
 
 
-@router.delete("/memory/searches/{name}")
+@router.delete("/memory/searches/{name:path}")
 async def remove_search(name: str):
+    # `:path` converter so names containing "/" survive routing. Frontend must
+    # URI-encode the name (encodeURIComponent / quote(name, safe="")) before
+    # interpolating into the URL -- the encoded %2F form is decoded correctly
+    # here, whereas a raw unescaped "/" would be split into extra segments.
     if not await db.delete_saved_search(HERMES_USER_ID, name):
         raise HTTPException(status_code=404, detail="saved search not found")
     return {"deleted": name}
@@ -70,14 +74,14 @@ async def get_skills():
     return await db.list_skills(HERMES_USER_ID)
 
 
-@router.put("/memory/skills/{concept}")
+@router.put("/memory/skills/{concept:path}")
 async def put_skill(concept: str, body: SkillPut):
     if body.level not in ("novice", "learning", "familiar"):
         raise HTTPException(status_code=422, detail="level must be novice|learning|familiar")
     return await db.set_skill_level(HERMES_USER_ID, concept, body.level)
 
 
-@router.delete("/memory/skills/{concept}")
+@router.delete("/memory/skills/{concept:path}")
 async def remove_skill(concept: str):
     if not await db.delete_skill(HERMES_USER_ID, concept):
         raise HTTPException(status_code=404, detail="skill not found")
