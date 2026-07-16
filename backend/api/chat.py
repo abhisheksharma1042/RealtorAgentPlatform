@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import AsyncIterator, Optional
 
-from agent.graph import stream_agent_response
+from backend.agent.graph import stream_agent_response
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
