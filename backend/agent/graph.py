@@ -11,6 +11,7 @@ from langgraph.prebuilt import ToolNode
 from agent.state import AgentState
 from agent.prompts import get_system_prompt
 from agent.tools import TOOLS, TOOL_FUNCTIONS
+from backend.hermes.memory import build_memory_block
 
 
 # Initialize Claude model
@@ -29,7 +30,8 @@ async def call_agent(state: AgentState) -> AgentState:
     model = get_model()
 
     # Build messages with system prompt
-    system_message = {"role": "system", "content": get_system_prompt()}
+    memory_block = state.get("context", {}).get("memory_block", "")
+    system_message = {"role": "system", "content": get_system_prompt() + memory_block}
     messages = [system_message] + state["messages"]
 
     response = await model.ainvoke(messages)
@@ -122,11 +124,15 @@ async def stream_agent_response(user_message: str) -> AsyncIterator[Dict[str, An
     Yields:
         Dict with event type and data
     """
+    # Load memory once per request (not per agent-node hop) - it is small
+    # and deterministic; failure degrades to a no-memory turn.
+    memory_block = await build_memory_block()
+
     # Initialize state
     initial_state: AgentState = {
         "messages": [HumanMessage(content=user_message)],
         "user_query": user_message,
-        "context": {},
+        "context": {"memory_block": memory_block},
         "tools_used": []
     }
 

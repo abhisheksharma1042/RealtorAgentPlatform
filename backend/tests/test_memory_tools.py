@@ -167,3 +167,20 @@ async def test_pin_property_exception_returns_error_dict(fake_db, monkeypatch):
     monkeypatch.setattr(fake_db, "find_property_by_address", boom)
     result = await memory_tools.pin_property("4024 Druid Ln")
     assert result["type"] == "pin_update" and "db down" in result["error"]
+
+
+def test_memory_tools_registered_in_agent():
+    from backend.agent.tools import TOOLS, TOOL_FUNCTIONS
+    names = {t["name"] for t in TOOLS}
+    expected = {"pin_property", "unpin_property", "save_search", "run_saved_search",
+                "record_skill_observation", "dismiss_widget", "get_data_coverage"}
+    assert expected <= names
+    assert expected <= set(TOOL_FUNCTIONS)
+
+
+def test_prompt_contains_teaching_and_coverage_rules():
+    from backend.agent.prompts import get_system_prompt
+    prompt = get_system_prompt()
+    assert "record_skill_observation" in prompt
+    assert "novice" in prompt
+    assert "coverage" in prompt.lower()
