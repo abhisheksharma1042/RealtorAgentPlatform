@@ -1,7 +1,7 @@
 // frontend/src/components/canvas/CompsTableWidget.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronUp, ChevronDown, Pin } from 'lucide-react'
-import { createPin } from '../../lib/memoryApi'
+import { createPin, getPins } from '../../lib/memoryApi'
 
 type SortKey = 'price' | 'beds' | 'baths' | 'sqft' | 'address'
 type SortDir = 'asc' | 'desc'
@@ -16,6 +16,18 @@ export default function CompsTableWidget(
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [pinned, setPinned] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    getPins()
+      .then(rows => {
+        if (!cancelled) {
+          setPinned(new Set(rows.map((r: any) => r.property_id)))
+        }
+      })
+      .catch(() => {})  // panel unreachable - leave buttons enabled
+    return () => { cancelled = true }
+  }, [])
 
   const rows: any[] = [...(result?.properties ?? [])].sort((a, b) => {
     const val = (p: any) =>
@@ -32,12 +44,17 @@ export default function CompsTableWidget(
   }
 
   const handlePin = async (p: any) => {
+    setPinned(prev => new Set(prev).add(p.id))  // optimistic + in-flight guard
     try {
       await createPin(p.id)
-      setPinned(prev => new Set(prev).add(p.id))
       onMemoryChange()
     } catch (e) {
       console.error('pin failed', e)
+      setPinned(prev => {
+        const next = new Set(prev)
+        next.delete(p.id)
+        return next
+      })
     }
   }
 
