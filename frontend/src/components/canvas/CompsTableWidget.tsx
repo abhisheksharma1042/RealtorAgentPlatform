@@ -11,7 +11,8 @@ const displayPrice = (p: any): number | null =>
   p.sold_price ?? p.price ?? p.appraised_value ?? null
 
 export default function CompsTableWidget(
-  { result, onMemoryChange }: { result: any; onMemoryChange: () => void },
+  { result, onMemoryChange, memoryVersion }:
+  { result: any; onMemoryChange: () => void; memoryVersion?: number },
 ) {
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -27,7 +28,9 @@ export default function CompsTableWidget(
       })
       .catch(() => {})  // panel unreachable - leave buttons enabled
     return () => { cancelled = true }
-  }, [])
+    // Refetch when memory changes elsewhere (e.g. Hermes Knows panel unpin)
+    // so pin icons here stay in sync.
+  }, [memoryVersion])
 
   const rows: any[] = [...(result?.properties ?? [])].sort((a, b) => {
     const val = (p: any) =>

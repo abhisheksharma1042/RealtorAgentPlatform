@@ -1,166 +1,102 @@
-import { useState, useMemo } from 'react'
+import { useReducer, useState } from 'react'
 import ChatPanel from './components/chat/ChatPanel'
-import FiltersAndMapPanel from './components/map/FiltersAndMapPanel'
-import OutputPanel from './components/output/OutputPanel'
+import WidgetCanvas from './components/canvas/WidgetCanvas'
+import HermesKnowsPanel from './components/hermes/HermesKnowsPanel'
+import { widgetReducer } from './widgets/widgetReducer'
+import { toolResultToActions } from './widgets/toolResultToWidgets'
+import { getCoverage } from './lib/memoryApi'
+import { Brain, MapPinned } from 'lucide-react'
 import './index.css'
 
-export interface QuerySession {
-  id: string
-  agentMessages: string[]
-  toolResults: any[]
-}
-
 function App() {
-  const [history, setHistory] = useState<QuerySession[]>([])
-  
-  // Filters State
-  const [minPrice, setMinPrice] = useState<number>(0)
-  const [maxPrice, setMaxPrice] = useState<number>(3000000)
-  const [minBeds, setMinBeds] = useState<number>(0)
-  const [minBaths, setMinBaths] = useState<number>(0)
-  
-  const handleStreamStart = () => {
-    // Start a new session in history
-    setHistory(prev => [
-      ...prev,
-      { id: Date.now().toString(), agentMessages: [], toolResults: [] }
-    ])
-  }
+  const [widgets, dispatch] = useReducer(widgetReducer, [])
+  const [hermesOpen, setHermesOpen] = useState(false)
+  const [memoryVersion, setMemoryVersion] = useState(0)
+  const [injectedMessage, setInjectedMessage] =
+    useState<{ text: string; id: number } | null>(null)
 
-  // NOTE: These updaters MUST be pure (no mutation). React StrictMode invokes
-  // functional updaters twice in dev - if we mutate nested arrays via .push,
-  // entries get appended twice and the history cards render duplicated
-  // Agent Analysis and Tool Result widgets.
+  const bumpMemory = () => setMemoryVersion(v => v + 1)
+
   const handleToolResult = (result: any) => {
-    setHistory(prev => {
-      if (prev.length === 0) return prev
-      const lastIdx = prev.length - 1
-      return prev.map((s, i) =>
-        i === lastIdx
-          ? { ...s, toolResults: [...s.toolResults, result] }
-          : s
-      )
-    })
+    for (const action of toolResultToActions(result, Date.now())) dispatch(action)
+    if (result?.type === 'pin_update' || result?.type === 'saved_search_update'
+        || result?.type === 'skill_update') {
+      bumpMemory()
+    }
   }
 
-  const handleAgentMessage = (message: string) => {
-    setHistory(prev => {
-      if (prev.length === 0) return prev
-      const lastIdx = prev.length - 1
-      return prev.map((s, i) =>
-        i === lastIdx
-          ? { ...s, agentMessages: [...s.agentMessages, message] }
-          : s
-      )
-    })
+  // Skill observations may land silently during a turn - refresh after each stream.
+  const handleStreamComplete = () => bumpMemory()
+
+  const handleRerunSearch = (name: string) =>
+    setInjectedMessage({ text: `Run my saved search "${name}"`, id: Date.now() })
+
+  const handleShowCoverage = async () => {
+    try {
+      const cov = await getCoverage()
+      dispatch({
+        type: 'upsert',
+        widget: {
+          key: 'coverage', type: 'coverage_map', title: 'Data coverage',
+          props: {
+            type: 'data_coverage',
+            notes: 'Texas is a non-disclosure state: sold prices exist only for the '
+              + 'RentCast-sourced subset; DCAD appraised values are public.',
+            ...cov,
+          },
+          updatedAt: Date.now(),
+        },
+      })
+    } catch (e) {
+      console.error('coverage fetch failed', e)
+    }
   }
-
-  const handleStreamComplete = () => {
-    console.log('Stream complete')
-  }
-  
-  // Extract latest comparable sales for the Center Map
-  const latestComparableSales = useMemo(() => {
-     if (history.length === 0) return null;
-     const currentSession = history[history.length - 1];
-     // Find the last comparable_sales tool result
-     const salesTool = [...currentSession.toolResults].reverse().find(r => r.type === 'comparable_sales');
-     return salesTool || null;
-  }, [history]);
-  
-  // Apply local filters dynamically
-  const filteredLatestSales = useMemo(() => {
-      if (!latestComparableSales || !latestComparableSales.properties) return null;
-      
-      const filteredProps = latestComparableSales.properties.filter((prop: any) => {
-         const price = prop.sold_price || prop.price || 0;
-         const beds = prop.beds || 0;
-         const baths = prop.baths || 0;
-
-         const priceOk = price >= minPrice && price <= maxPrice;
-         const bedsOk = beds >= minBeds;
-         const bathsOk = baths >= minBaths;
-
-         return priceOk && bedsOk && bathsOk;
-      });
-
-      // Drop rows that failed geocoding - the Census batch geocoder can't
-      // resolve unit-suffixed county addresses (e.g. "1747 LEONARD ST #1002")
-      // so their lat/lon come back null. Passing null to Mapbox lands the
-      // marker at (0, 0) - "Null Island" off the west coast of Africa.
-      const geocodable = filteredProps.filter((p: any) =>
-         typeof p.lat === 'number' && typeof p.lon === 'number' &&
-         !Number.isNaN(p.lat) && !Number.isNaN(p.lon)
-      );
-
-      const formattedMarkers = geocodable.map((p: any) => {
-          const sold = p.sold_price ?? p.price ?? null;
-          const appraised = p.appraised_value ?? null;
-          return {
-              lat: p.lat,
-              lon: p.lon,
-              price: sold,
-              appraised_value: appraised,
-              // Texas is a non-disclosure state so most county-sourced rows have
-              // no sold price; DCAD's total_appraised is the next best signal.
-              price_kind: sold ? 'sold' : (appraised ? 'appraised' : null),
-              address: p.address,
-              beds: p.beds,
-              baths: p.baths,
-              sqft: p.sqft,
-              year_built: p.year_built,
-              source: p.source,
-          };
-      });
-      
-      return {
-          zipCode: latestComparableSales.zip_code,
-          markers: formattedMarkers
-      }
-  }, [latestComparableSales, minPrice, maxPrice, minBeds, minBaths]);
 
   return (
     <div className="h-screen w-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border px-6 py-4">
+      <header className="border-b border-border px-6 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">
-              DFW Realtor Agent
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              AI-powered real estate research for Dallas-Fort Worth
+            <h1 className="text-xl font-semibold text-foreground">DFW Realtor Agent</h1>
+            <p className="text-xs text-muted-foreground">
+              Hermes — your market research control center
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleShowCoverage}
+                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border hover:bg-accent transition-colors">
+              <MapPinned className="h-4 w-4" /> Coverage
+            </button>
+            <button onClick={() => setHermesOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border hover:bg-accent transition-colors">
+              <Brain className="h-4 w-4" /> Hermes Knows
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Three-pane layout - Simple grid for now, resizable panels in Phase 9 */}
-      <div className="h-[calc(100vh-73px)] grid grid-cols-12 gap-1">
-        {/* Left: Chat Panel */}
-        <div className="col-span-3 overflow-hidden">
+      <div className="h-[calc(100vh-61px)] grid grid-cols-12">
+        <div className="col-span-4 xl:col-span-3 border-r border-border overflow-hidden">
           <ChatPanel
-            onStreamStart={handleStreamStart}
             onToolResult={handleToolResult}
-            onAgentMessage={handleAgentMessage}
             onStreamComplete={handleStreamComplete}
+            injectedMessage={injectedMessage}
           />
         </div>
-
-        {/* Center: Filters and Map */}
-        <div className="col-span-4 border-l border-r border-border overflow-hidden">
-          <FiltersAndMapPanel 
-             latestSales={filteredLatestSales} 
-             filters={{ minPrice, maxPrice, minBeds, minBaths }}
-             onFilterChange={{ setMinPrice, setMaxPrice, setMinBeds, setMinBaths }}
-          />
-        </div>
-
-        {/* Right: Output Panel */}
-        <div className="col-span-5 overflow-hidden">
-          <OutputPanel history={history} />
+        <div className="col-span-8 xl:col-span-9 overflow-hidden">
+          <WidgetCanvas widgets={widgets} dispatch={dispatch} onMemoryChange={bumpMemory}
+                        memoryVersion={memoryVersion} />
         </div>
       </div>
+
+      <HermesKnowsPanel
+        open={hermesOpen}
+        onClose={() => setHermesOpen(false)}
+        version={memoryVersion}
+        onRerunSearch={handleRerunSearch}
+        onShowCoverage={handleShowCoverage}
+        onMemoryChange={bumpMemory}
+      />
     </div>
   )
 }
