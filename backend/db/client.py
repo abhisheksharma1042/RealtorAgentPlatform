@@ -437,10 +437,14 @@ class SupabaseDB:
     async def upsert_pin(
         self, user_id: str, property_id: str, note: Optional[str] = None
     ) -> Dict[str, Any]:
+        """Omitting note preserves the existing value; pass an empty string to clear it."""
+        payload = {"user_id": user_id, "property_id": property_id}
+        if note is not None:
+            payload["note"] = note
         response = (
             self.client.table("pinned_properties")
             .upsert(
-                {"user_id": user_id, "property_id": property_id, "note": note},
+                payload,
                 on_conflict="user_id,property_id",
             )
             .execute()
@@ -484,16 +488,19 @@ class SupabaseDB:
         criteria: Dict[str, Any],
         client_note: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Omitting client_note preserves the existing value; pass an empty string to clear it."""
+        payload = {
+            "user_id": user_id,
+            "name": name,
+            "criteria": criteria,
+            "updated_at": datetime.now().isoformat(),
+        }
+        if client_note is not None:
+            payload["client_note"] = client_note
         response = (
             self.client.table("saved_searches")
             .upsert(
-                {
-                    "user_id": user_id,
-                    "name": name,
-                    "criteria": criteria,
-                    "client_note": client_note,
-                    "updated_at": datetime.now().isoformat(),
-                },
+                payload,
                 on_conflict="user_id,name",
             )
             .execute()
