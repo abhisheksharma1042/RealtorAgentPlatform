@@ -541,7 +541,8 @@ class SupabaseDB:
         self, user_id: str, concept: str, level: str, note: Optional[str] = None
     ) -> Dict[str, Any]:
         """Agent observation: increments evidence; one observation never jumps
-        straight to 'familiar' (needs >= 3 observations unless already there)."""
+        straight to 'familiar' (needs >= 3 observations unless already there).
+        Omitting note preserves the existing value; pass an empty string to clear it."""
         existing = (
             self.client.table("skill_profile")
             .select("*")
@@ -553,17 +554,28 @@ class SupabaseDB:
         prev_level = existing[0]["level"] if existing else None
         if level == "familiar" and prev_level != "familiar" and evidence < 3:
             level = "learning"
+        # User-authority guard: a level set via set_skill_level() is marked
+        # notes == "set by user" and is authoritative per the system prompt's
+        # promise that user-corrected levels win. An agent observation that
+        # disagrees with a user-locked level is recorded (evidence_count and
+        # last_observed_at still advance) but must not overwrite the level.
+        # Supplying a new note replaces the "set by user" marker, which
+        # intentionally releases the lock for future observations.
+        if existing and existing[0].get("notes") == "set by user" and level != prev_level:
+            level = prev_level
+        payload = {
+            "user_id": user_id,
+            "concept": concept,
+            "level": level,
+            "evidence_count": evidence,
+            "last_observed_at": datetime.now().isoformat(),
+        }
+        if note is not None:
+            payload["notes"] = note
         response = (
             self.client.table("skill_profile")
             .upsert(
-                {
-                    "user_id": user_id,
-                    "concept": concept,
-                    "level": level,
-                    "evidence_count": evidence,
-                    "notes": note,
-                    "last_observed_at": datetime.now().isoformat(),
-                },
+                payload,
                 on_conflict="user_id,concept",
             )
             .execute()

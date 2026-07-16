@@ -67,13 +67,25 @@ export default function ChatPanel({
       content: text,
       timestamp: new Date(),
     }
-    setMessages(prev => [...prev, userMessage])
+
+    // The assistant response's target position must be derived from `prev`
+    // inside this functional update, not from the `messages` closure. A
+    // queued rerun (flushed from the FINISHING stream's finally block, see
+    // below) invokes handleSendMessage again from a stale closure; if the
+    // index were computed from `messages.length` here it would equal the
+    // previous turn's index and the new response would overwrite it instead
+    // of appending. `assistantIndexRef` is a plain object local to this call
+    // of handleSendMessage (not a shared React ref), so concurrent/sequential
+    // calls each track their own target index without interfering.
+    const assistantIndexRef = { current: -1 }
+    setMessages(prev => {
+      assistantIndexRef.current = prev.length + 1
+      return [...prev, userMessage]
+    })
     setInput('')
     setIsStreaming(true)
     isStreamingRef.current = true
 
-    // Add placeholder for assistant response
-    const assistantMessageIndex = messages.length + 1
     let assistantContent = ''
 
     try {
@@ -119,7 +131,7 @@ export default function ChatPanel({
                 setMessages(prev => {
                   const newMessages = [...prev]
                   const existingIndex = newMessages.findIndex(
-                    (m, i) => i === assistantMessageIndex && m.role === 'assistant'
+                    (m, i) => i === assistantIndexRef.current && m.role === 'assistant'
                   )
                   if (existingIndex >= 0) {
                     newMessages[existingIndex].content = assistantContent
