@@ -21,6 +21,7 @@ sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(backend_dir))
 
 from backend.api.chat import router as chat_router
+from backend.api.memory import router as memory_router
 
 # Load environment variables
 load_dotenv()
@@ -47,6 +48,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat_router)
+app.include_router(memory_router)
 
 
 @app.get("/")
