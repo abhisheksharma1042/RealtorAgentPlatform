@@ -13,6 +13,7 @@ interface HermesKnowsPanelProps {
   version: number                 // bump to refetch (memory changed elsewhere)
   onRerunSearch: (name: string) => void
   onShowCoverage: () => void
+  onMemoryChange?: () => void     // notify the canvas after a mutation here
 }
 
 const LEVELS = ['novice', 'learning', 'familiar'] as const
@@ -31,7 +32,7 @@ function Section({ title, error, onRetry, children }: {
 }
 
 export default function HermesKnowsPanel({
-  open, onClose, version, onRerunSearch, onShowCoverage,
+  open, onClose, version, onRerunSearch, onShowCoverage, onMemoryChange,
 }: HermesKnowsPanelProps) {
   const [pins, setPins] = useState<any[] | null>(null)
   const [searches, setSearches] = useState<any[] | null>(null)
@@ -57,7 +58,7 @@ export default function HermesKnowsPanel({
   const mutate = (p: Promise<unknown>) => p.then(retry).catch(err => {
     console.error('memory mutation failed', err)
     retry()
-  })
+  }).then(() => onMemoryChange?.())
 
   return (
     <div className="fixed inset-y-0 right-0 w-96 max-w-full bg-card border-l border-border shadow-xl z-50 flex flex-col">

@@ -10,23 +10,8 @@ interface Message {
 
 interface ChatPanelProps {
   onToolResult: (result: any) => void
-  onAgentMessage: (message: string) => void
-  onStreamStart: () => void
   onStreamComplete: () => void
-}
-
-function parseAgentResponse(content: string) {
-  const parts = content.split('---SUGGESTION---');
-  
-  if (parts.length > 1) {
-    return {
-      analysis: parts[0].trim(),
-      suggestion: parts[1].trim(),
-      split: true
-    };
-  }
-
-  return { analysis: content, suggestion: content, split: false };
+  injectedMessage?: { text: string; id: number } | null
 }
 
 // Suggested prompts for novice users
@@ -39,9 +24,8 @@ const SUGGESTED_PROMPTS = [
 
 export default function ChatPanel({
   onToolResult,
-  onAgentMessage,
-  onStreamStart,
   onStreamComplete,
+  injectedMessage,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -69,7 +53,6 @@ export default function ChatPanel({
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsStreaming(true)
-    onStreamStart()
 
     // Add placeholder for assistant response
     const assistantMessageIndex = messages.length + 1
@@ -110,9 +93,9 @@ export default function ChatPanel({
               const event = JSON.parse(data)
 
               if (event.type === 'agent_message') {
-                const parsed = parseAgentResponse(event.content)
-                assistantContent = parsed.suggestion
-                const outputContent = parsed.split ? parsed.analysis : event.content
+                // Full message shown in chat — the canvas is *now*, chat scroll
+                // is the past.
+                assistantContent = event.content.replace('---SUGGESTION---', '\n\n')
 
                 // Update assistant message
                 setMessages(prev => {
@@ -131,7 +114,6 @@ export default function ChatPanel({
                   }
                   return newMessages
                 })
-                onAgentMessage(outputContent)
               } else if (event.type === 'tool_result') {
                 onToolResult(event.result)
               } else if (event.type === 'complete') {
@@ -167,6 +149,13 @@ export default function ChatPanel({
       setIsStreaming(false)
     }
   }
+
+  useEffect(() => {
+    if (injectedMessage?.text) {
+      handleSendMessage(injectedMessage.text)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectedMessage?.id])
 
   return (
     <div className="h-full flex flex-col bg-card">
