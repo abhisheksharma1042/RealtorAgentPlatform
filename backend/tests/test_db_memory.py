@@ -15,13 +15,15 @@ async def test_pin_roundtrip(db):
         # joined property payload present for display
         joined = next(p for p in pins if p["property_id"] == prop["id"])
         assert joined["properties"]["address"] == prop["address"]
-    finally:
         assert await db.delete_pin(TEST_USER, prop["id"]) is True
+    finally:
+        await db.delete_pin(TEST_USER, prop["id"])
     assert all(p["property_id"] != prop["id"] for p in await db.list_pins(TEST_USER))
 
 
 @pytest.mark.asyncio
 async def test_saved_search_roundtrip(db):
+    await db.delete_saved_search(TEST_USER, "itest-johnsons")  # pre-clean leftover from crashed runs
     try:
         row = await db.upsert_saved_search(
             TEST_USER, "itest-johnsons",
@@ -37,12 +39,16 @@ async def test_saved_search_roundtrip(db):
         await db.upsert_saved_search(TEST_USER, "itest-johnsons", {"zip_code": "75205"})
         rows = [s for s in await db.list_saved_searches(TEST_USER) if s["name"] == "itest-johnsons"]
         assert len(rows) == 1 and rows[0]["criteria"]["zip_code"] == "75205"
-    finally:
+        # omitting client_note on re-upsert preserves the original value
+        assert rows[0]["client_note"] == "integration"
         assert await db.delete_saved_search(TEST_USER, "itest-johnsons") is True
+    finally:
+        await db.delete_saved_search(TEST_USER, "itest-johnsons")
 
 
 @pytest.mark.asyncio
 async def test_skill_evidence_and_familiar_guard(db):
+    await db.delete_skill(TEST_USER, "itest_dom")  # pre-clean leftover from crashed runs
     try:
         first = await db.upsert_skill(TEST_USER, "itest_dom", "novice", note="asked what DOM means")
         assert first["evidence_count"] == 1 and first["level"] == "novice"
@@ -54,8 +60,9 @@ async def test_skill_evidence_and_familiar_guard(db):
         # User correction via set_skill_level sticks
         corrected = await db.set_skill_level(TEST_USER, "itest_dom", "novice")
         assert corrected["level"] == "novice"
-    finally:
         assert await db.delete_skill(TEST_USER, "itest_dom") is True
+    finally:
+        await db.delete_skill(TEST_USER, "itest_dom")
 
 
 @pytest.mark.asyncio
