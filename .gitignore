@@ -63,3 +63,6 @@ logs/
 *.bak
 *.tmp
 .cache/
+
+# Superpowers brainstorm sessions
+.superpowers/
