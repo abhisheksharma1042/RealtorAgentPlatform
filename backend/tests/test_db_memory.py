@@ -66,6 +66,28 @@ async def test_skill_evidence_and_familiar_guard(db):
 
 
 @pytest.mark.asyncio
+async def test_skill_note_preserved_on_omission(db):
+    await db.delete_skill(TEST_USER, "itest_note")
+    try:
+        await db.upsert_skill(TEST_USER, "itest_note", "novice", note="asked about it")
+        row = await db.upsert_skill(TEST_USER, "itest_note", "learning")  # no note
+        assert row["notes"] == "asked about it"
+    finally:
+        await db.delete_skill(TEST_USER, "itest_note")
+
+
+@pytest.mark.asyncio
+async def test_user_set_level_resists_agent_downgrade(db):
+    await db.delete_skill(TEST_USER, "itest_auth")
+    try:
+        await db.set_skill_level(TEST_USER, "itest_auth", "familiar")
+        row = await db.upsert_skill(TEST_USER, "itest_auth", "novice")  # agent observation
+        assert row["level"] == "familiar"  # user correction is authoritative
+    finally:
+        await db.delete_skill(TEST_USER, "itest_auth")
+
+
+@pytest.mark.asyncio
 async def test_data_coverage_and_boundaries(db):
     rows = await db.get_data_coverage()
     assert len(rows) >= 5
