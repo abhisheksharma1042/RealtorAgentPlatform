@@ -148,6 +148,7 @@ class SupabaseDB:
 
         return {
             "type": "comparable_sales",
+            "zip_code": zip_code,
             "count": len(properties),
             "properties": properties,
             "map_markers": map_markers,
