@@ -20,7 +20,7 @@ repo_root = backend_dir.parent
 sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(backend_dir))
 
-from api.chat import router as chat_router
+from backend.api.chat import router as chat_router
 
 # Load environment variables
 load_dotenv()

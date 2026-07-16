@@ -2,6 +2,7 @@
 from typing import Any, Dict, Optional
 
 from backend.db.client import db
+from backend.agent.memory_tools import MEMORY_TOOLS, MEMORY_TOOL_FUNCTIONS
 
 
 async def fetch_market_data(
@@ -128,8 +129,6 @@ TOOLS = [
         },
     },
 ]
-
-from backend.agent.memory_tools import MEMORY_TOOLS, MEMORY_TOOL_FUNCTIONS
 
 TOOLS = TOOLS + MEMORY_TOOLS
 

@@ -8,9 +8,9 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
-from agent.state import AgentState
-from agent.prompts import get_system_prompt
-from agent.tools import TOOLS, TOOL_FUNCTIONS
+from backend.agent.state import AgentState
+from backend.agent.prompts import get_system_prompt
+from backend.agent.tools import TOOLS, TOOL_FUNCTIONS
 from backend.hermes.memory import build_memory_block
 
 
