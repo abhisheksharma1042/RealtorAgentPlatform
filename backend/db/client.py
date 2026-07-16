@@ -1,6 +1,8 @@
 """Supabase database client and query functions"""
 
 import os
+import re
+import uuid as uuid_mod
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from supabase import create_client, Client
@@ -416,6 +418,212 @@ class SupabaseDB:
             if expiry < datetime.now(expiry.tzinfo):
                 return None
         return row["data"]
+
+    # ------------------------------------------------------------------
+    # Hermes memory (migration 007)
+    # ------------------------------------------------------------------
+
+    async def list_pins(self, user_id: str) -> List[Dict[str, Any]]:
+        response = (
+            self.client.table("pinned_properties")
+            .select("*, properties(id, address, city, zip_code, beds, baths, sqft, "
+                    "year_built, appraised_value, sold_price, price, lat, lon, source)")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return response.data
+
+    async def upsert_pin(
+        self, user_id: str, property_id: str, note: Optional[str] = None
+    ) -> Dict[str, Any]:
+        response = (
+            self.client.table("pinned_properties")
+            .upsert(
+                {"user_id": user_id, "property_id": property_id, "note": note},
+                on_conflict="user_id,property_id",
+            )
+            .execute()
+        )
+        return response.data[0]
+
+    async def delete_pin(self, user_id: str, property_id: str) -> bool:
+        response = (
+            self.client.table("pinned_properties")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("property_id", property_id)
+            .execute()
+        )
+        return len(response.data) > 0
+
+    async def list_saved_searches(self, user_id: str) -> List[Dict[str, Any]]:
+        response = (
+            self.client.table("saved_searches")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .execute()
+        )
+        return response.data
+
+    async def get_saved_search(self, user_id: str, name: str) -> Optional[Dict[str, Any]]:
+        response = (
+            self.client.table("saved_searches")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
+    async def upsert_saved_search(
+        self,
+        user_id: str,
+        name: str,
+        criteria: Dict[str, Any],
+        client_note: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        response = (
+            self.client.table("saved_searches")
+            .upsert(
+                {
+                    "user_id": user_id,
+                    "name": name,
+                    "criteria": criteria,
+                    "client_note": client_note,
+                    "updated_at": datetime.now().isoformat(),
+                },
+                on_conflict="user_id,name",
+            )
+            .execute()
+        )
+        return response.data[0]
+
+    async def touch_saved_search(self, user_id: str, name: str) -> None:
+        (
+            self.client.table("saved_searches")
+            .update({"last_run_at": datetime.now().isoformat()})
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+        )
+
+    async def delete_saved_search(self, user_id: str, name: str) -> bool:
+        response = (
+            self.client.table("saved_searches")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+        )
+        return len(response.data) > 0
+
+    async def list_skills(self, user_id: str) -> List[Dict[str, Any]]:
+        response = (
+            self.client.table("skill_profile")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("concept")
+            .execute()
+        )
+        return response.data
+
+    async def upsert_skill(
+        self, user_id: str, concept: str, level: str, note: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Agent observation: increments evidence; one observation never jumps
+        straight to 'familiar' (needs >= 3 observations unless already there)."""
+        existing = (
+            self.client.table("skill_profile")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("concept", concept)
+            .execute()
+        ).data
+        evidence = (existing[0]["evidence_count"] + 1) if existing else 1
+        prev_level = existing[0]["level"] if existing else None
+        if level == "familiar" and prev_level != "familiar" and evidence < 3:
+            level = "learning"
+        response = (
+            self.client.table("skill_profile")
+            .upsert(
+                {
+                    "user_id": user_id,
+                    "concept": concept,
+                    "level": level,
+                    "evidence_count": evidence,
+                    "notes": note,
+                    "last_observed_at": datetime.now().isoformat(),
+                },
+                on_conflict="user_id,concept",
+            )
+            .execute()
+        )
+        return response.data[0]
+
+    async def set_skill_level(self, user_id: str, concept: str, level: str) -> Dict[str, Any]:
+        """User correction from the panel: sets level directly, no evidence math."""
+        response = (
+            self.client.table("skill_profile")
+            .upsert(
+                {"user_id": user_id, "concept": concept, "level": level,
+                 "notes": "set by user"},
+                on_conflict="user_id,concept",
+            )
+            .execute()
+        )
+        return response.data[0]
+
+    async def delete_skill(self, user_id: str, concept: str) -> bool:
+        response = (
+            self.client.table("skill_profile")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("concept", concept)
+            .execute()
+        )
+        return len(response.data) > 0
+
+    async def get_data_coverage(self) -> List[Dict[str, Any]]:
+        response = self.client.table("data_coverage").select("*").execute()
+        return response.data
+
+    async def get_zip_boundaries(self) -> List[Dict[str, Any]]:
+        response = self.client.table("zip_boundaries").select("*").execute()
+        return response.data
+
+    async def upsert_zip_boundary(self, zip_code: str, boundary: Dict[str, Any]) -> None:
+        (
+            self.client.table("zip_boundaries")
+            .upsert({"zip": zip_code, "boundary": boundary}, on_conflict="zip")
+            .execute()
+        )
+
+    async def find_property_by_address(
+        self, query: str, limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Resolve a pin target. UUID fast-path, else normalized ILIKE match."""
+        try:
+            uuid_mod.UUID(query)
+            response = (
+                self.client.table("properties").select("*").eq("id", query).execute()
+            )
+            return response.data
+        except (ValueError, AttributeError, TypeError):
+            pass
+        normalized = re.sub(r"[.,#]", "", (query or "").upper())
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        if not normalized:
+            return []
+        response = (
+            self.client.table("properties")
+            .select("*")
+            .ilike("address", f"%{normalized}%")
+            .limit(limit)
+            .execute()
+        )
+        return response.data
 
     def test_connection(self) -> bool:
         """Test database connection"""
