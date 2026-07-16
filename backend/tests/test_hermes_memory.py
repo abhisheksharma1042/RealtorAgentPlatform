@@ -64,3 +64,21 @@ async def test_db_failure_degrades_gracefully(monkeypatch):
     monkeypatch.setattr(memory, "db", FakeDB(fail=True))
     block = await memory.build_memory_block()
     assert "Memory unavailable" in block
+
+
+@pytest.mark.asyncio
+async def test_no_coverage_rows_renders_caution(monkeypatch):
+    monkeypatch.setattr(memory, "db", FakeDB(coverage=[]))
+    block = await memory.build_memory_block()
+    assert "No coverage rows found" in block
+    assert "non-disclosure" in block
+
+
+@pytest.mark.asyncio
+async def test_familiar_only_skills(monkeypatch):
+    monkeypatch.setattr(memory, "db", FakeDB(
+        skills=[{"concept": "comps", "level": "familiar"}],
+    ))
+    block = await memory.build_memory_block()
+    assert "Familiar - do NOT re-explain: comps" in block
+    assert "Explain plainly" not in block
