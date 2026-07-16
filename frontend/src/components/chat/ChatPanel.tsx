@@ -31,6 +31,13 @@ export default function ChatPanel({
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Mirrors `isStreaming` synchronously so handleSendMessage's guard doesn't
+  // read a stale closure value when called again right after a stream ends
+  // (e.g. flushing a queued injected message from the finally block below).
+  const isStreamingRef = useRef(false)
+  // Holds an injected message (e.g. a "rerun" click) that arrived while a
+  // stream was in flight, so it can be sent once the stream completes.
+  const pendingInjectedRef = useRef<string | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -42,7 +49,7 @@ export default function ChatPanel({
 
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input
-    if (!text.trim() || isStreaming) return
+    if (!text.trim() || isStreamingRef.current) return
 
     // Add user message
     const userMessage: Message = {
@@ -53,6 +60,7 @@ export default function ChatPanel({
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsStreaming(true)
+    isStreamingRef.current = true
 
     // Add placeholder for assistant response
     const assistantMessageIndex = messages.length + 1
@@ -95,7 +103,7 @@ export default function ChatPanel({
               if (event.type === 'agent_message') {
                 // Full message shown in chat — the canvas is *now*, chat scroll
                 // is the past.
-                assistantContent = event.content.replace('---SUGGESTION---', '\n\n')
+                assistantContent = event.content.replaceAll('---SUGGESTION---', '\n\n')
 
                 // Update assistant message
                 setMessages(prev => {
@@ -147,12 +155,25 @@ export default function ChatPanel({
       ])
     } finally {
       setIsStreaming(false)
+      isStreamingRef.current = false
+
+      // Flush any injected message (e.g. a rerun) that was queued while
+      // this stream was active.
+      if (pendingInjectedRef.current) {
+        const pending = pendingInjectedRef.current
+        pendingInjectedRef.current = null
+        handleSendMessage(pending)
+      }
     }
   }
 
   useEffect(() => {
     if (injectedMessage?.text) {
-      handleSendMessage(injectedMessage.text)
+      if (isStreamingRef.current) {
+        pendingInjectedRef.current = injectedMessage.text
+      } else {
+        handleSendMessage(injectedMessage.text)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injectedMessage?.id])
