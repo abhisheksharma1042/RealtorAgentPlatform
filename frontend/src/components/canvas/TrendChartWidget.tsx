@@ -1,8 +1,25 @@
 // frontend/src/components/canvas/TrendChartWidget.tsx
 import TimeSeriesChart from '../charts/TimeSeriesChart'
 
-export default function TrendChartWidget({ result }: { result: any }) {
-  const history: any[] = result?.history ?? []
+interface HistoryPoint {
+  period?: string
+  median_price?: number
+  avg_price?: number
+  sales_volume?: number
+  avg_days_on_market?: number
+}
+
+export default function TrendChartWidget(
+  { result }: {
+    result: {
+      history?: HistoryPoint[]
+      zip_code?: string
+      median_price?: number
+      avg_days_on_market?: number
+    } | null | undefined
+  },
+) {
+  const history: HistoryPoint[] = result?.history ?? []
   if (history.length === 0) {
     return <p className="text-sm text-muted-foreground p-4">No trend history available.</p>
   }

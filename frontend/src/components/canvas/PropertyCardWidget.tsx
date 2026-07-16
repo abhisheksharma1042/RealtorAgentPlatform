@@ -1,8 +1,25 @@
 // frontend/src/components/canvas/PropertyCardWidget.tsx
-export default function PropertyCardWidget({ result }: { result: any }) {
+import type { ReactNode } from 'react'
+
+interface Property {
+  address?: string
+  price?: number
+  sold_price?: number
+  appraised_value?: number
+  beds?: number
+  baths?: number
+  sqft?: number
+  year_built?: number
+  zip_code?: string
+  source?: string
+}
+
+export default function PropertyCardWidget(
+  { result }: { result: { property?: Property; note?: string } | null | undefined },
+) {
   const p = result?.property ?? {}
   const price = p.sold_price ?? p.price
-  const rows: Array<[string, any]> = [
+  const rows: Array<[string, ReactNode]> = [
     ['Beds', p.beds], ['Baths', p.baths],
     ['Sqft', p.sqft?.toLocaleString()], ['Year built', p.year_built],
     ['Zip', p.zip_code], ['Source', p.source],

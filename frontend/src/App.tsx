@@ -17,6 +17,7 @@ function App() {
 
   const bumpMemory = () => setMemoryVersion(v => v + 1)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw SSE tool_result payload; shape varies by tool type
   const handleToolResult = (result: any) => {
     for (const action of toolResultToActions(result, Date.now())) dispatch(action)
     if (result?.type === 'pin_update' || result?.type === 'saved_search_update'

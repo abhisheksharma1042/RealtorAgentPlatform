@@ -1,4 +1,6 @@
 // frontend/src/components/hermes/HermesKnowsPanel.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// TODO(types): discriminated union for pin/search/skill/coverage memory-api rows
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { X, Trash2, Play, Brain, MapPinned } from 'lucide-react'

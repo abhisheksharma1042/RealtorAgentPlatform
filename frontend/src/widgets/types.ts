@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// TODO(types): discriminated union for widget props keyed off WidgetType
 export type WidgetType =
   | 'map'
   | 'comps_table'

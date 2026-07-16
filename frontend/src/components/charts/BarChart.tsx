@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// TODO(types): replace `any` echarts callback params with proper echarts-for-react types.
+// This chart pre-dates the data-ingestion feature; left untyped to avoid scope creep here.
 import ReactECharts from 'echarts-for-react'
 import { useMemo } from 'react'
 

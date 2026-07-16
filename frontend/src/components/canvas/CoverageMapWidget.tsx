@@ -1,12 +1,24 @@
 import { useMemo } from 'react'
 import Map, { Source, Layer } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import type { Feature } from 'geojson'
+
+interface CoverageRow {
+  zip: string
+  county?: string
+  parcel_count?: number
+  sold_listing_count?: number
+  stats_to?: string
+  appraisal_year?: number
+}
 
 // result: a data_coverage tool result ({ coverage: rows, boundaries: [GeoJSON Feature] })
-export default function CoverageMapWidget({ result }: { result: any }) {
+export default function CoverageMapWidget(
+  { result }: { result: { coverage?: CoverageRow[]; boundaries?: Feature[]; notes?: string } | null | undefined },
+) {
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN
-  const rows: any[] = result?.coverage ?? []
-  const features: any[] = result?.boundaries ?? []
+  const rows: CoverageRow[] = result?.coverage ?? []
+  const features = useMemo(() => result?.boundaries ?? [], [result?.boundaries])
 
   const fc = useMemo(
     () => ({ type: 'FeatureCollection' as const, features }),
@@ -44,7 +56,7 @@ export default function CoverageMapWidget({ result }: { result: any }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r: any) => (
+            {rows.map((r) => (
               <tr key={r.zip} className="border-b border-border/40">
                 <td className="py-1 px-2 font-medium">
                   {r.zip} <span className="text-muted-foreground">({r.county})</span>

@@ -2,16 +2,30 @@
 import { useMemo, useState } from 'react'
 import PropertyMap from '../map/PropertyMap'
 
+interface MapMarker {
+  lat?: number | null
+  lon?: number | null
+  price?: number
+  appraised_value?: number
+  address?: string
+  beds?: number
+  baths?: number
+  sqft?: number
+}
+
 // result: a comparable_sales tool result ({ zip_code, map_markers, ... })
-export default function MapWidget({ result }: { result: any }) {
+export default function MapWidget(
+  { result }: { result: { zip_code?: string; map_markers?: MapMarker[] } | null | undefined },
+) {
   const [maxPrice, setMaxPrice] = useState(5000000)
   const [minBeds, setMinBeds] = useState(0)
 
   const markers = useMemo(() => {
-    const raw: any[] = result?.map_markers ?? []
+    const raw: MapMarker[] = result?.map_markers ?? []
     return raw
       // Null lat/lon renders at (0,0) "Null Island" - drop ungeocodable rows
-      .filter(m => typeof m.lat === 'number' && typeof m.lon === 'number'
+      .filter((m): m is MapMarker & { lat: number; lon: number } =>
+        typeof m.lat === 'number' && typeof m.lon === 'number'
         && !Number.isNaN(m.lat) && !Number.isNaN(m.lon))
       .filter(m => {
         const price = m.price ?? m.appraised_value ?? 0
