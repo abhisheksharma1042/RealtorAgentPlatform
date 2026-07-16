@@ -129,7 +129,12 @@ TOOLS = [
     },
 ]
 
+from backend.agent.memory_tools import MEMORY_TOOLS, MEMORY_TOOL_FUNCTIONS
+
+TOOLS = TOOLS + MEMORY_TOOLS
+
 TOOL_FUNCTIONS = {
     "fetch_market_data": fetch_market_data,
     "get_comparable_sales": get_comparable_sales,
+    **MEMORY_TOOL_FUNCTIONS,
 }
