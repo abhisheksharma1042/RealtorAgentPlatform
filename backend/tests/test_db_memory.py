@@ -85,3 +85,10 @@ async def test_find_property_by_address(db):
     # UUID fast-path
     by_id = await db.find_property_by_address(sample["id"])
     assert len(by_id) == 1 and by_id[0]["id"] == sample["id"]
+
+
+@pytest.mark.asyncio
+async def test_comparable_sales_includes_zip_code(db):
+    result = await db.get_comparable_sales(zip_code="75205", limit=3)
+    assert result["type"] == "comparable_sales"
+    assert result["zip_code"] == "75205"
