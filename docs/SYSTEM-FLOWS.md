@@ -51,14 +51,14 @@ Key facts:
 - The final answer ends with `---SUGGESTION---` + a follow-up suggestion; the
   ChatPanel renders it as a visually separate block.
 - Each turn is stateless server-side (no session persistence yet) — the
-  durable state is Hermes memory, not conversation history.
+  durable state is Plutus memory, not conversation history.
 
 ### SSE event protocol
 
 | Event | Payload | Frontend reaction |
 |---|---|---|
 | `agent_message` | `{content, node}` | Append/replace assistant bubble text |
-| `tool_call` | `{tool, args}` | Inline "Hermes is running X" activity row |
+| `tool_call` | `{tool, args}` | Inline "Plutus is running X" activity row |
 | `tool_result` | `{tool, result}` | `toolResultToActions(result)` → widget dispatch; memory bump for `pin_update` / `saved_search_update` / `skill_update` |
 | `complete` | `{}` | End stream, bump `memoryVersion` |
 | `error` | `{error}` | Show error state in chat |
@@ -78,22 +78,22 @@ Key facts:
 
 ## 2. Memory writes — two paths, one substrate
 
-Both the agent (via tools) and the user (via the Hermes Knows panel / pin
+Both the agent (via tools) and the user (via the Plutus Knows panel / pin
 buttons) write the **same Supabase tables**. Neither path is a cache of the
 other, so they can never disagree for more than one turn.
 
 ```mermaid
 flowchart TB
     subgraph AgentPath["Path A — through conversation"]
-        A1[User asks Hermes to pin / save / teach] --> A2[Claude calls memory tool]
+        A1[User asks Plutus to pin / save / teach] --> A2[Claude calls memory tool]
         A2 --> A3[pin_property / save_search / record_skill_observation]
     end
     subgraph PanelPath["Path B — direct manipulation (no LLM)"]
-        B1[Hermes Knows panel or comps-table pin button] --> B2[REST /api/memory/*]
+        B1[Plutus Knows panel or comps-table pin button] --> B2[REST /api/memory/*]
     end
     A3 --> DB[(pinned_properties<br/>saved_searches<br/>skill_profile)]
     B2 --> DB
-    DB -->|next turn: build_memory_block| P[System prompt block<br/>“Hermes context”]
+    DB -->|next turn: build_memory_block| P[System prompt block<br/>”Plutus context”]
     DB -->|memoryVersion bump → refetch| UI[Panel + pin buttons]
 ```
 
@@ -120,7 +120,7 @@ like any other turn.
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant P as HermesKnowsPanel
+    participant P as PlutusKnowsPanel
     participant App as App.tsx
     participant CP as ChatPanel
     participant G as Agent
@@ -237,7 +237,7 @@ flowchart TB
     subgraph Step4["4 · boundaries fetch"]
         B1[Census TIGERweb ZCTA layer] --> B2[zip_boundaries GeoJSON]
     end
-    Step1 --> Step2 --> Step3 --> Step4 --> V[data_coverage VIEW updates automatically<br/>→ Hermes knows about the new ZIP next turn]
+    Step1 --> Step2 --> Step3 --> Step4 --> V[data_coverage VIEW updates automatically<br/>→ Plutus knows about the new ZIP next turn]
 ```
 
 Cross-cutting behavior:

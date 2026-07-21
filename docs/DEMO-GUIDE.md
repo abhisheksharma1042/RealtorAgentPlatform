@@ -4,7 +4,7 @@
 
 ## The pitch (30 seconds)
 
-"This is **Hermes** — an AI market-research control center for new real-estate
+"This is **Plutus** — an AI market-research control center for new real-estate
 agents in DFW. You talk to it like a colleague, and it builds your workspace
 for you: maps, comps tables, price trends, pinned properties. Three things make
 it different from a chatbot:
@@ -53,14 +53,14 @@ Open http://localhost:5173 and confirm the header + empty canvas render.
 
 ### 3. Decide your starting memory
 
-Current live memory (check via **Hermes Knows** button):
+Current live memory (check via **Plutus Knows** button):
 - Saved searches: **"Johnsons"** and **"Shergills"** (3+ bed, price-capped)
 - Skill: **days_on_market = novice**, marked *set by user*
 
 Two options:
 - **Demo on top of it** (recommended): existing memory makes the "it remembers
   across sessions" story land immediately — open the panel first.
-- **Clean slate**: delete items in the Hermes Knows panel before you start
+- **Clean slate**: delete items in the Plutus Knows panel before you start
   (each row has a delete control). There's no bulk reset.
 
 ## What the data actually is (say this confidently)
@@ -73,7 +73,7 @@ Two options:
   through July 2026) and ~100 sold listings per ZIP.
 - **Texas is a non-disclosure state** — sold prices aren't public record. The
   platform leads with appraised values and labels the RentCast sold subset
-  explicitly. Hermes says which one it's using. This is a feature, not a
+  explicitly. Plutus says which one it's using. This is a feature, not a
   limitation: it's the same reality every Texas agent works in.
 
 ---
@@ -89,12 +89,12 @@ under each. Beats 3–5 are the memory story — the heart of the demo.
 What are home prices doing in 75205?
 ```
 
-**Expect:** Hermes calls `fetch_market_data`; a **trend chart widget**
+**Expect:** Plutus calls `fetch_market_data`; a **trend chart widget**
 (median price / DOM over 12+ months) appears on the canvas mid-answer. The
 answer cites appraised vs sold sourcing. Note the separated follow-up
 suggestion at the bottom of the reply.
 
-**Say:** "Notice I didn't ask for a chart — Hermes composes the workspace as a
+**Say:** "Notice I didn't ask for a chart — Plutus composes the workspace as a
 side effect of the conversation."
 
 ### Beat 2 — Comps → map + table
@@ -132,10 +132,10 @@ it knows."
 Save this search as "Johnsons" — it's for a family wanting 3+ beds under $800K
 ```
 
-**Expect:** Hermes confirms the save (it never saves silently — if you just
+**Expect:** Plutus confirms the save (it never saves silently — if you just
 repeat criteria twice, it *offers* to save instead).
 
-Then open **Hermes Knows** → Saved searches → click **rerun** on "Johnsons".
+Then open **Plutus Knows** → Saved searches → click **rerun** on "Johnsons".
 
 **Expect:** a chat message is injected on your behalf, the agent runs the
 saved criteria, and the map + table come back titled "— Johnsons".
@@ -150,7 +150,7 @@ What does price per square foot actually tell me?
 ```
 
 **Expect:** a plain-English explanation, and (silently) a skill observation
-recorded. Open **Hermes Knows** → Skill profile — the concept is now tracked.
+recorded. Open **Plutus Knows** → Skill profile — the concept is now tracked.
 
 Then show suppression the other way: `days_on_market` is already marked
 *novice, set by user*. Correct it to **familiar** in the panel, then ask:
@@ -183,7 +183,7 @@ and the agent's self-knowledge, update automatically."
 
 (Also point out the **Coverage** header button — same widget, no LLM call.)
 
-### Beat 7 — Hermes Knows panel wrap-up
+### Beat 7 — Plutus Knows panel wrap-up
 
 Open the panel and walk the four sections: pins, saved searches, skills,
 coverage.
@@ -202,9 +202,9 @@ rebuild."
 2. **Real data** — ingestion pipeline: DCAD bulk parcels (41k), RentCast
    stats/listings, Census+Mapbox geocoding, response caching, API budget
    guards, PostGIS.
-3. **Hermes memory & control center** (latest) — persistent memory (pins,
+3. **Plutus memory & control center** (latest) — persistent memory (pins,
    searches, skills), truthful coverage, 7 new agent tools, memory REST API,
-   the widget canvas, and the Hermes Knows panel. Built via TDD: **76 backend
+   the widget canvas, and the Plutus Knows panel. Built via TDD: **76 backend
    + 12 frontend tests**, all green.
 
 ## Known limitations (don't let these surprise you live)
