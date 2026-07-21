@@ -6,10 +6,10 @@
 ## What this is
 
 An AI-powered market-research **control center** for novice real-estate license
-holders in the Dallas–Fort Worth metroplex. The user talks to **Hermes** — a
-LangGraph agent backed by Claude — and Hermes composes the workspace for them:
+holders in the Dallas–Fort Worth metroplex. The user talks to **Plutus** — a
+LangGraph agent backed by Claude — and Plutus composes the workspace for them:
 maps, comps tables, trend charts, and property cards appear on a widget canvas
-as side effects of the conversation. Hermes has **persistent memory** (pinned
+as side effects of the conversation. Plutus has **persistent memory** (pinned
 properties, saved searches, a per-concept skill profile) and **truthful
 data-coverage awareness** — it knows exactly which ZIPs and counties it has
 data for and refuses to bluff beyond them.
@@ -25,13 +25,13 @@ flowchart LR
     subgraph Browser["Frontend — React 19 + Vite (localhost:5173)"]
         Chat[ChatPanel<br/>SSE stream]
         Canvas[WidgetCanvas<br/>map / comps / trend / card / coverage]
-        Panel[Hermes Knows panel<br/>pins · searches · skills · coverage]
+        Panel[Plutus Knows panel<br/>pins · searches · skills · coverage]
     end
 
     subgraph API["Backend — FastAPI (localhost:8000)"]
         ChatAPI["/api/chat/stream (SSE)"]
         MemAPI["/api/memory/* + /api/coverage (REST)"]
-        subgraph Agent["LangGraph agent (Hermes)"]
+        subgraph Agent["LangGraph agent (Plutus)"]
             LLM[Claude sonnet-4-5<br/>+ 9 tools]
             Mem[build_memory_block<br/>per-turn memory injection]
         end
@@ -84,10 +84,10 @@ RealtorAgentPlatform/
 │   │   ├── graph.py            # LangGraph StateGraph: agent ⇄ tools loop, SSE streaming
 │   │   ├── tools.py            # Data tools: fetch_market_data, get_comparable_sales
 │   │   ├── memory_tools.py     # 7 memory/control tools (never raise)
-│   │   ├── prompts.py          # Hermes system prompt (memory/teaching/coverage rules)
+│   │   ├── prompts.py          # Plutus system prompt (memory/teaching/coverage rules)
 │   │   └── state.py            # AgentState TypedDict
-│   ├── hermes/
-│   │   ├── __init__.py         # HERMES_USER_ID (single-user POC constant)
+│   ├── plutus/
+│   │   ├── __init__.py         # PLUTUS_USER_ID (single-user POC constant)
 │   │   └── memory.py           # build_memory_block() — per-turn memory injection
 │   ├── db/client.py            # Supabase client: data queries + 16 memory methods
 │   ├── ingestion/
@@ -106,7 +106,7 @@ RealtorAgentPlatform/
 │   ├── components/
 │   │   ├── chat/ChatPanel.tsx  # SSE consumer, markdown, suggestion delimiter
 │   │   ├── canvas/             # WidgetCanvas, WidgetFrame + 5 widget bodies
-│   │   └── hermes/HermesKnowsPanel.tsx  # memory inspector/editor slide-over
+│   │   └── plutus/PlutusKnowsPanel.tsx  # memory inspector/editor slide-over
 │   └── lib/memoryApi.ts        # typed fetch helpers for the memory REST API
 └── docs/                       # this documentation + superpowers plans/specs
 ```
@@ -133,7 +133,7 @@ Notes:
 - The `{name:path}` / `{concept:path}` converters let names containing `/`
   survive routing; the frontend `encodeURIComponent`s before interpolating.
 - The memory REST API and the agent's memory tools write to the **same
-  tables** — the panel edits take effect on Hermes's next turn because memory
+  tables** — the panel edits take effect on Plutus's next turn because memory
   is re-read every turn.
 
 ### The agent (`backend/agent/`)
@@ -174,7 +174,7 @@ Design rule: **memory tools never raise.** Every tool catches internally,
 `logger.warning`s, and returns `{"type": …, "error": …}` so a memory failure
 degrades a single answer instead of killing the stream.
 
-### The Hermes memory layer (`backend/hermes/`)
+### The Plutus memory layer (`backend/plutus/`)
 
 Design principles:
 
@@ -191,12 +191,12 @@ Design principles:
    `county_parcels` / `properties` / `market_stats`, so the coverage block is
    always live DB truth, never a config file that can drift.
 4. **Single-user POC, multi-user-ready.** All memory tables carry `user_id`;
-   `HERMES_USER_ID` is a fixed UUID. Flipping to Supabase Auth is a config
+   `PLUTUS_USER_ID` is a fixed UUID. Flipping to Supabase Auth is a config
    change, not a migration.
 
 ### System prompt (`prompts.py`)
 
-Hermes's behavior contract, in four sections worth knowing for the demo:
+Plutus's behavior contract, in four sections worth knowing for the demo:
 
 - **Memory rules** — trust the injected context over inference; user-corrected
   skill levels are authoritative; *offer* to save searches on repeated
@@ -291,7 +291,7 @@ polygons stored.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ DFW Realtor Agent          [Coverage] [Hermes Knows]       │  header
+│ DFW Realtor Agent          [Coverage] [Plutus Knows]       │  header
 ├──────────────┬─────────────────────────────────────────────┤
 │              │                                             │
 │  ChatPanel   │   WidgetCanvas                              │
@@ -300,7 +300,7 @@ polygons stored.
 │  SSE stream  │   coverage widgets, each in a WidgetFrame   │
 │              │                                             │
 └──────────────┴─────────────────────────────────────────────┘
-        Hermes Knows slide-over panel (over canvas)
+        Plutus Knows slide-over panel (over canvas)
 ```
 
 ### The widget system (`src/widgets/`)
@@ -341,16 +341,16 @@ nothing about it is chat-specific.
 - Renders markdown (react-markdown); the `---SUGGESTION---` delimiter is
   replaced so the agent's follow-up suggestion reads as a separate block.
 - `injectedMessage` prop lets the app *programmatically send a chat message* —
-  used by the Hermes Knows panel's "rerun search" button. If a rerun is
+  used by the Plutus Knows panel's "rerun search" button. If a rerun is
   injected mid-stream it is queued (`pendingInjectedRef`) and drained after the
   current stream finishes.
 - Streaming state is guarded by refs (`isStreamingRef`, per-send
   `assistantIndexRef` assigned inside the functional `setMessages`) so queued
   sends can't corrupt earlier bubbles.
 
-### Hermes Knows panel (`components/hermes/HermesKnowsPanel.tsx`)
+### Plutus Knows panel (`components/plutus/PlutusKnowsPanel.tsx`)
 
-The memory inspector — the user can see and edit everything Hermes remembers,
+The memory inspector — the user can see and edit everything Plutus remembers,
 without an LLM round-trip:
 
 - **Pinned properties** — view/edit/unpin (REST).
@@ -381,7 +381,7 @@ memory changes converge without a websocket or global store.
    subset clearly labeled, and the caveat survives even memory-load failure.
 3. **Memory as state, not retrieval** — deterministic whole-memory injection
    beats embeddings at this scale; behavior is reproducible and debuggable.
-4. **Panel and agent share one substrate** — the "Hermes Knows" panel is not a
+4. **Panel and agent share one substrate** — the "Plutus Knows" panel is not a
    mirror of agent state; both write the same tables, so the user can always
    correct the agent, and the agent always sees corrections next turn.
 5. **Tools never raise** — every memory tool returns typed error payloads;
