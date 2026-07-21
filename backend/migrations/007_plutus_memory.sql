@@ -1,4 +1,4 @@
--- Migration 007: Hermes memory layer.
+-- Migration 007: Plutus memory layer.
 -- pins / saved searches / skill profile all carry user_id so the MVP
 -- Supabase Auth flip is a config change, not a migration.
 -- data_coverage is a VIEW so coverage claims are always live DB truth.

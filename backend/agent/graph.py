@@ -11,7 +11,7 @@ from langgraph.prebuilt import ToolNode
 from backend.agent.state import AgentState
 from backend.agent.prompts import get_system_prompt
 from backend.agent.tools import TOOLS, TOOL_FUNCTIONS
-from backend.hermes.memory import build_memory_block
+from backend.plutus.memory import build_memory_block
 
 
 # Initialize Claude model

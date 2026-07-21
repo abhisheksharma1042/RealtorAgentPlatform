@@ -57,7 +57,7 @@ export default function CompsTableWidget(
       })
       .catch(() => {})  // panel unreachable - leave buttons enabled
     return () => { cancelled = true }
-    // Refetch when memory changes elsewhere (e.g. Hermes Knows panel unpin)
+    // Refetch when memory changes elsewhere (e.g. Plutus Knows panel unpin)
     // so pin icons here stay in sync.
   }, [memoryVersion])
 

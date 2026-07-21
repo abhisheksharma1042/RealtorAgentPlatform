@@ -24,7 +24,7 @@ async def test_call_agent_appends_memory_block_to_system_prompt():
     state = {
         "messages": [],
         "user_query": "hi",
-        "context": {"memory_block": "\n\n# Hermes context\nMEMORY_SENTINEL"},
+        "context": {"memory_block": "\n\n# Plutus context\nMEMORY_SENTINEL"},
         "tools_used": [],
     }
 

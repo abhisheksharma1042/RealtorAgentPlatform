@@ -1,4 +1,4 @@
-"""Integration tests for the Hermes Knows CRUD API (live Supabase)."""
+"""Integration tests for the Plutus Knows CRUD API (live Supabase)."""
 from fastapi.testclient import TestClient
 
 from backend.main import app

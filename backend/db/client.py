@@ -421,7 +421,7 @@ class SupabaseDB:
         return row["data"]
 
     # ------------------------------------------------------------------
-    # Hermes memory (migration 007)
+    # Plutus memory (migration 007)
     # ------------------------------------------------------------------
 
     async def list_pins(self, user_id: str) -> List[Dict[str, Any]]:

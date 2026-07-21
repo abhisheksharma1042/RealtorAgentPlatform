@@ -1,4 +1,4 @@
-"""Hermes memory tools: pins, saved searches, skill observations, canvas, coverage.
+"""Plutus memory tools: pins, saved searches, skill observations, canvas, coverage.
 
 Every tool returns a dict with a 'type' key - the frontend widget reducer
 maps types to widgets. Errors come back as strings for the agent to relay;
@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, Optional
 
 from backend.db.client import db
-from backend.hermes import HERMES_USER_ID
+from backend.plutus import PLUTUS_USER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ async def pin_property(address_or_id: str, note: Optional[str] = None) -> Dict[s
                 ],
             }
         prop = matches[0]
-        await db.upsert_pin(HERMES_USER_ID, prop["id"], note)
+        await db.upsert_pin(PLUTUS_USER_ID, prop["id"], note)
         return {"type": "pin_update", "action": "pinned", "property": prop, "note": note}
     except Exception as exc:
         logger.warning("pin_property failed", exc_info=True)
@@ -68,7 +68,7 @@ async def unpin_property(address_or_id: str) -> Dict[str, Any]:
                     for m in matches
                 ],
             }
-        removed = await db.delete_pin(HERMES_USER_ID, matches[0]["id"])
+        removed = await db.delete_pin(PLUTUS_USER_ID, matches[0]["id"])
         if not removed:
             return {"type": "pin_update", "error": "That property was not pinned."}
         return {"type": "pin_update", "action": "unpinned", "property": matches[0]}
@@ -90,7 +90,7 @@ async def save_search(
                 f"zip {zip_code} is outside current coverage "
                 f"({', '.join(sorted(covered))}) - the search will return no rows"
             )
-        row = await db.upsert_saved_search(HERMES_USER_ID, name, criteria, client_note)
+        row = await db.upsert_saved_search(PLUTUS_USER_ID, name, criteria, client_note)
         return {"type": "saved_search_update", "action": "saved",
                 "search": row, "warning": warning}
     except Exception as exc:
@@ -100,9 +100,9 @@ async def save_search(
 
 async def run_saved_search(name: str) -> Dict[str, Any]:
     try:
-        search = await db.get_saved_search(HERMES_USER_ID, name)
+        search = await db.get_saved_search(PLUTUS_USER_ID, name)
         if not search:
-            names = [s["name"] for s in await db.list_saved_searches(HERMES_USER_ID)]
+            names = [s["name"] for s in await db.list_saved_searches(PLUTUS_USER_ID)]
             return {
                 "type": "saved_search_update",
                 "error": f"No saved search named '{name}'. Saved searches: {names}",
@@ -110,7 +110,7 @@ async def run_saved_search(name: str) -> Dict[str, Any]:
         kwargs = {k: v for k, v in (search.get("criteria") or {}).items()
                   if k in _SEARCH_KEYS}
         result = await db.get_comparable_sales(**kwargs)
-        await db.touch_saved_search(HERMES_USER_ID, name)
+        await db.touch_saved_search(PLUTUS_USER_ID, name)
         result["saved_search_name"] = name
         return result
     except Exception as exc:
@@ -126,7 +126,7 @@ async def record_skill_observation(
         if not normalized or level not in ("novice", "learning", "familiar"):
             return {"type": "skill_update",
                     "error": f"invalid concept/level: {concept!r}/{level!r}"}
-        row = await db.upsert_skill(HERMES_USER_ID, normalized, level, note)
+        row = await db.upsert_skill(PLUTUS_USER_ID, normalized, level, note)
         return {"type": "skill_update", "skill": row}
     except Exception as exc:
         logger.warning("record_skill_observation failed", exc_info=True)
