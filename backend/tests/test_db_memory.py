@@ -1,4 +1,4 @@
-"""Integration tests for Hermes memory db methods (live Supabase, migration 007)."""
+"""Integration tests for Plutus memory db methods (live Supabase, migration 007)."""
 import pytest
 
 TEST_USER = "00000000-0000-0000-0000-000000009999"

@@ -42,7 +42,7 @@ export default function WidgetCanvas({ widgets, dispatch, onMemoryChange, memory
         <div className="text-center space-y-3">
           <LayoutGrid className="h-12 w-12 text-muted-foreground mx-auto" />
           <p className="text-sm text-muted-foreground max-w-xs">
-            Ask Hermes a question - analysis widgets will appear here.
+            Ask Plutus a question - analysis widgets will appear here.
           </p>
         </div>
       </div>

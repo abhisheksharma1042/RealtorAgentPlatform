@@ -1,5 +1,15 @@
 # DFW Realtor Agent Platform - Implementation Progress
 
+> ⚠️ **Historical log.** This file tracks the original build phases and is not
+> kept current. For the system **as it stands now**, see
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+> [docs/SYSTEM-FLOWS.md](docs/SYSTEM-FLOWS.md), and
+> [docs/DEMO-GUIDE.md](docs/DEMO-GUIDE.md). Since this log was written, the
+> platform gained: a real data layer (41k DCAD parcels + RentCast, migrations
+> 003–006), and the Hermes memory & control center (persistent pins / saved
+> searches / skill profile, coverage awareness, 7 memory tools, memory REST
+> API, widget canvas, Hermes Knows panel — migration 007).
+
 ## ✅ Phase 0: Foundation & Setup (COMPLETE)
 
 **Status:** Done

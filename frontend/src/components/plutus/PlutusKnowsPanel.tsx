@@ -1,4 +1,4 @@
-// frontend/src/components/hermes/HermesKnowsPanel.tsx
+// frontend/src/components/plutus/PlutusKnowsPanel.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TODO(types): discriminated union for pin/search/skill/coverage memory-api rows
 import { useEffect, useState } from 'react'
@@ -9,7 +9,7 @@ import {
   getSkills, setSkillLevel, deleteSkill, getCoverage,
 } from '../../lib/memoryApi'
 
-interface HermesKnowsPanelProps {
+interface PlutusKnowsPanelProps {
   open: boolean
   onClose: () => void
   version: number                 // bump to refetch (memory changed elsewhere)
@@ -33,9 +33,9 @@ function Section({ title, error, onRetry, children }: {
   )
 }
 
-export default function HermesKnowsPanel({
+export default function PlutusKnowsPanel({
   open, onClose, version, onRerunSearch, onShowCoverage, onMemoryChange,
-}: HermesKnowsPanelProps) {
+}: PlutusKnowsPanelProps) {
   const [pins, setPins] = useState<any[] | null>(null)
   const [searches, setSearches] = useState<any[] | null>(null)
   const [skills, setSkills] = useState<any[] | null>(null)
@@ -66,7 +66,7 @@ export default function HermesKnowsPanel({
     <div className="fixed inset-y-0 right-0 w-96 max-w-full bg-card border-l border-border shadow-xl z-50 flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
         <h2 className="text-base font-semibold flex items-center gap-2">
-          <Brain className="h-4 w-4" /> Hermes Knows
+          <Brain className="h-4 w-4" /> Plutus Knows
         </h2>
         <button onClick={onClose} aria-label="Close panel"
                 className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -75,7 +75,7 @@ export default function HermesKnowsPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <Section title="Saved searches" error={searches === null} onRetry={retry}>
           {searches?.length === 0 && (
-            <p className="text-xs text-muted-foreground">None yet — ask Hermes to save one.</p>
+            <p className="text-xs text-muted-foreground">None yet — ask Plutus to save one.</p>
           )}
           {searches?.map((s: any) => (
             <div key={s.name} className="border border-border rounded-lg p-2 text-sm space-y-1">
@@ -125,7 +125,7 @@ export default function HermesKnowsPanel({
 
         <Section title="Your skill profile" error={skills === null} onRetry={retry}>
           {skills?.length === 0 && (
-            <p className="text-xs text-muted-foreground">Hermes hasn't observed anything yet.</p>
+            <p className="text-xs text-muted-foreground">Plutus hasn't observed anything yet.</p>
           )}
           {skills?.map((s: any) => (
             <div key={s.concept}

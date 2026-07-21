@@ -1,6 +1,6 @@
 import pytest
 
-from backend.hermes import memory
+from backend.plutus import memory
 
 
 class FakeDB:

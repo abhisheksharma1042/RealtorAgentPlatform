@@ -8,12 +8,12 @@ none of this.
 import logging
 
 from backend.db.client import db
-from backend.hermes import HERMES_USER_ID
+from backend.plutus import PLUTUS_USER_ID
 
 logger = logging.getLogger(__name__)
 
 
-async def build_memory_block(user_id: str = HERMES_USER_ID) -> str:
+async def build_memory_block(user_id: str = PLUTUS_USER_ID) -> str:
     try:
         pins = await db.list_pins(user_id)
         searches = await db.list_saved_searches(user_id)
@@ -22,7 +22,7 @@ async def build_memory_block(user_id: str = HERMES_USER_ID) -> str:
 
         lines: list[str] = [
             "", "",
-            "# Hermes context (loaded from memory - trust this over inference)",
+            "# Plutus context (loaded from memory - trust this over inference)",
         ]
 
         # MVP(multi-user): collapse newlines + cap length of user-authored strings
@@ -68,7 +68,7 @@ async def build_memory_block(user_id: str = HERMES_USER_ID) -> str:
         )
         return "\n".join(lines)
     except Exception:
-        logger.warning("Hermes memory load failed; running without memory", exc_info=True)
+        logger.warning("Plutus memory load failed; running without memory", exc_info=True)
         return (
             "\n\n[Memory unavailable this turn - do not reference pins, saved "
             "searches, or the user's skill profile. Data coverage is unknown "
