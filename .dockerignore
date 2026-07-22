@@ -1,0 +1,17 @@
+.git
+node_modules
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/dist
+**/.env
+**/.env.*
+.env
+docs
+supabase
+.claude
+.superpowers
+.agents
+.vscode
+PROGRESS.md
