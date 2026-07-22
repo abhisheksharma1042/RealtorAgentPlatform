@@ -304,10 +304,10 @@ Run:
 
 ```bash
 VITE_API_URL="" npm run build -w frontend
-grep -rc "localhost:8000" frontend/dist/assets/ || echo "CLEAN"
+grep -o 'VITE_API_URL:[^,}]*' frontend/dist/assets/index-*.js
 ```
 
-Expected: build succeeds; grep finds nothing → prints `CLEAN`. This proves `VITE_API_URL=''` from the environment overrides `frontend/.env.local` and produces a same-origin bundle.
+Expected: build succeeds; grep shows `VITE_API_URL:""` (or backtick-quoted empty string) — the empty value is baked into the bundle, proving the process-env override beats `frontend/.env.local`. Note: a naive grep for `localhost:8000` is NOT a valid check — that literal legitimately survives minification as the dead fallback branch inside `resolveApiBase`; what matters is the env value Vite statically replaced.
 
 - [ ] **Step 5: Commit**
 
