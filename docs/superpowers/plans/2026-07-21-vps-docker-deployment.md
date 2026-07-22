@@ -475,7 +475,9 @@ set -euo pipefail
 
 cd /opt/RealtorAgentPlatform
 git pull --ff-only
-docker compose up -d --build
+# --wait makes the exit code mean "running and healthy", not just "started";
+# on failure, set -e aborts before the prune so the previous image survives.
+docker compose up -d --build --wait
 docker image prune -f
 docker compose ps
 ```
