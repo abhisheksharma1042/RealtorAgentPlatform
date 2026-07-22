@@ -7,8 +7,10 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+# Install from the pinned lockfile (uv pip compile output) so a cold rebuild
+# weeks later resolves the exact same dependency versions as today.
+COPY backend/requirements.lock backend/requirements.lock
+RUN pip install --no-cache-dir -r backend/requirements.lock
 
 COPY backend/ backend/
 
