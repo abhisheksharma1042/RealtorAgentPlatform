@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { API_BASE } from '../../lib/apiBase'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -90,7 +91,7 @@ export default function ChatPanel({
 
     try {
       // Connect to SSE endpoint
-      const response = await fetch('http://localhost:8000/api/chat/stream', {
+      const response = await fetch(`${API_BASE}/api/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

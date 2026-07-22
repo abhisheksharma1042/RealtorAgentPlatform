@@ -1,5 +1,7 @@
 // frontend/src/lib/memoryApi.ts
-const BASE = 'http://localhost:8000/api'
+import { API_BASE } from './apiBase'
+
+const BASE = `${API_BASE}/api`
 
 async function req(path: string, init?: RequestInit) {
   const res = await fetch(`${BASE}${path}`, {
