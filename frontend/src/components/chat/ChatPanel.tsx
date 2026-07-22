@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { API_BASE } from '../../lib/apiBase'
+import { createSseParser } from '../../lib/sseParser'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -105,6 +106,7 @@ export default function ChatPanel({
 
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
+      const parseSse = createSseParser()
 
       if (!reader) {
         throw new Error('No reader available')
@@ -114,55 +116,50 @@ export default function ChatPanel({
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
+        // stream:true keeps multi-byte characters split across reads intact
+        for (const data of parseSse(decoder.decode(value, { stream: true }))) {
+          try {
+            const event = JSON.parse(data)
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            try {
-              const event = JSON.parse(data)
+            if (event.type === 'agent_message') {
+              // Full message shown in chat — the canvas is *now*, chat scroll
+              // is the past.
+              assistantContent = event.content.replaceAll('---SUGGESTION---', '\n\n')
 
-              if (event.type === 'agent_message') {
-                // Full message shown in chat — the canvas is *now*, chat scroll
-                // is the past.
-                assistantContent = event.content.replaceAll('---SUGGESTION---', '\n\n')
-
-                // Update assistant message
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  const existingIndex = newMessages.findIndex(
-                    (m, i) => i === assistantIndexRef.current && m.role === 'assistant'
-                  )
-                  if (existingIndex >= 0) {
-                    newMessages[existingIndex].content = assistantContent
-                  } else {
-                    newMessages.push({
-                      role: 'assistant',
-                      content: assistantContent,
-                      timestamp: new Date(),
-                    })
-                  }
-                  return newMessages
-                })
-              } else if (event.type === 'tool_result') {
-                onToolResult(event.result)
-              } else if (event.type === 'complete') {
-                onStreamComplete()
-              } else if (event.type === 'error') {
-                console.error('Agent error:', event.error)
-                setMessages(prev => [
-                  ...prev,
-                  {
+              // Update assistant message
+              setMessages(prev => {
+                const newMessages = [...prev]
+                const existingIndex = newMessages.findIndex(
+                  (m, i) => i === assistantIndexRef.current && m.role === 'assistant'
+                )
+                if (existingIndex >= 0) {
+                  newMessages[existingIndex].content = assistantContent
+                } else {
+                  newMessages.push({
                     role: 'assistant',
-                    content: `Error: ${event.error}`,
+                    content: assistantContent,
                     timestamp: new Date(),
-                  },
-                ])
-              }
-            } catch (e) {
-              console.error('Failed to parse SSE event:', e)
+                  })
+                }
+                return newMessages
+              })
+            } else if (event.type === 'tool_result') {
+              onToolResult(event.result)
+            } else if (event.type === 'complete') {
+              onStreamComplete()
+            } else if (event.type === 'error') {
+              console.error('Agent error:', event.error)
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `Error: ${event.error}`,
+                  timestamp: new Date(),
+                },
+              ])
             }
+          } catch (e) {
+            console.error('Failed to parse SSE event:', e)
           }
         }
       }
