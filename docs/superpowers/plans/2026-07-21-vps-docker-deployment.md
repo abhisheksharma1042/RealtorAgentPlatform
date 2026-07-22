@@ -258,6 +258,12 @@ server {
         try_files $uri =404;
     }
 
+    # App shell must revalidate on every load so a redeploy takes effect
+    # immediately (otherwise a cached index.html can reference old hashed assets)
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
     # SPA fallback
     location / {
         try_files $uri /index.html;
