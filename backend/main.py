@@ -40,6 +40,7 @@ app.add_middleware(
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",  # Alternative frontend port
         "https://*.vercel.app",   # Vercel deployments
+        "https://realtor.shergillvps.com",  # VPS production
     ],
     allow_credentials=True,
     allow_methods=["*"],
