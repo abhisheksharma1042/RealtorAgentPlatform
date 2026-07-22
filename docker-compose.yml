@@ -1,0 +1,46 @@
+# Realtor Agent Platform — production stack for the Hostinger VPS.
+# Joins Nginx Proxy Manager's existing docker network (external); no host
+# ports are published — NPM is the only ingress.
+#
+# Requires a root .env (see .env.example) for build args + network name,
+# and backend/.env for runtime secrets.
+
+services:
+  frontend:
+    container_name: realtor-frontend
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - npm
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    container_name: realtor-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      ENVIRONMENT: production
+    restart: unless-stopped
+    networks:
+      - npm
+    logging: *logging
+
+networks:
+  npm:
+    name: ${NPM_NETWORK}
+    external: true
